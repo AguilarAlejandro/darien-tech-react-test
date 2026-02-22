@@ -1,0 +1,401 @@
+'use client'
+
+import { useState, useEffect, useCallback, useRef } from 'react'
+import { espaciosApi, iotApi } from '@/lib/api'
+import type { Espacio, DigitalTwin, TelemetryAggregation, Alert, AlertKind, SSETelemetryEvent, SSEAlertEvent } from '@/lib/types'
+import { useAuth } from '@/contexts/AuthContext'
+import { useSSE } from '@/hooks/useSSE'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Badge } from '@/components/ui/badge'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Alert as AlertUI, AlertDescription } from '@/components/ui/alert'
+import {
+  LineChart,
+  Line,
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  Legend,
+} from 'recharts'
+import toast from 'react-hot-toast'
+
+const ALERT_KIND_LABELS: Record<AlertKind, string> = {
+  CO2: '🌫️ CO₂ elevado',
+  OCCUPANCY_MAX: '👥 Ocupación máxima',
+  OCCUPANCY_UNEXPECTED: '👤 Ocupación inesperada',
+}
+
+function formatTime(iso: string) {
+  return new Date(iso).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })
+}
+
+function TwinPanel({
+  espacioId,
+  isAdmin,
+}: {
+  espacioId: string
+  isAdmin: boolean
+}) {
+  const [twin, setTwin] = useState<DigitalTwin | null>(null)
+  const [editing, setEditing] = useState(false)
+  const [desired, setDesired] = useState<Partial<DigitalTwin['desired']>>({})
+  const [saving, setSaving] = useState(false)
+
+  const fetchTwin = useCallback(async () => {
+    try {
+      const data = await iotApi.getTwin(espacioId)
+      setTwin(data)
+      setDesired(data.desired)
+    } catch {
+      toast.error('Error al cargar digital twin')
+    }
+  }, [espacioId])
+
+  useEffect(() => { fetchTwin() }, [fetchTwin])
+
+  async function handleSave() {
+    setSaving(true)
+    try {
+      const updated = await iotApi.updateDesired(espacioId, desired)
+      setTwin(updated)
+      setEditing(false)
+      toast.success('Estado deseado actualizado')
+    } catch {
+      toast.error('Error al actualizar')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  if (!twin) return <div className="text-stone-400 text-sm animate-pulse">Cargando twin…</div>
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-4">
+        {/* Desired */}
+        <Card className="border-teal-100">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-semibold text-teal-700 flex items-center justify-between">
+              Estado Deseado
+              {isAdmin && (
+                <Button variant="ghost" size="sm" className="text-xs h-6 px-2" onClick={() => setEditing(!editing)}>
+                  {editing ? 'Cancelar' : 'Editar'}
+                </Button>
+              )}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2 text-sm">
+            {editing ? (
+              <div className="space-y-2">
+                {(
+                  [
+                    ['maxOcupacion', 'Max. ocupación', 'number'],
+                    ['co2AlertThreshold', 'Umbral CO₂ (ppm)', 'number'],
+                    ['samplingIntervalSec', 'Intervalo muestreo (s)', 'number'],
+                    ['lightingLevel', 'Nivel de luz (0-100)', 'number'],
+                  ] as [keyof DigitalTwin['desired'], string, string][]
+                ).map(([k, label]) => (
+                  <div key={k} className="space-y-0.5">
+                    <Label className="text-xs">{label}</Label>
+                    <Input
+                      type="number"
+                      value={desired[k] as number ?? ''}
+                      onChange={(e) => setDesired((d) => ({ ...d, [k]: Number(e.target.value) }))}
+                      className="h-7 text-xs"
+                    />
+                  </div>
+                ))}
+                <Button size="sm" className="w-full bg-teal-600 hover:bg-teal-700 text-white text-xs" onClick={handleSave} disabled={saving}>
+                  {saving ? 'Guardando…' : 'Guardar'}
+                </Button>
+              </div>
+            ) : (
+              <dl className="space-y-1.5">
+                {[
+                  ['Max. ocupación', twin.desired.maxOcupacion],
+                  ['Umbral CO₂', `${twin.desired.co2AlertThreshold} ppm`],
+                  ['Intervalo muestreo', `${twin.desired.samplingIntervalSec}s`],
+                  ['Nivel de luz', `${twin.desired.lightingLevel}%`],
+                  ['HVAC', twin.desired.hvacEnabled ? 'Activado' : 'Desactivado'],
+                ].map(([label, value]) => (
+                  <div key={String(label)} className="flex justify-between">
+                    <dt className="text-stone-500">{label}</dt>
+                    <dd className="font-medium text-stone-700">{String(value)}</dd>
+                  </div>
+                ))}
+              </dl>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Reported */}
+        <Card className="border-emerald-100">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-semibold text-emerald-700">Estado Reportado</CardTitle>
+          </CardHeader>
+          <CardContent className="text-sm">
+            {twin.reported ? (
+              <dl className="space-y-1.5">
+                {[
+                  ['Temperatura', `${twin.reported.tempC.toFixed(1)} °C`],
+                  ['CO₂', `${twin.reported.co2Ppm} ppm`],
+                  ['Ocupación actual', twin.reported.ocupacionActual],
+                  ['Humedad', `${twin.reported.humedadPct.toFixed(0)}%`],
+                  ['Última lectura', formatTime(twin.reported.timestamp)],
+                ].map(([label, value]) => (
+                  <div key={String(label)} className="flex justify-between">
+                    <dt className="text-stone-500">{label}</dt>
+                    <dd className="font-medium text-stone-700">{String(value)}</dd>
+                  </div>
+                ))}
+              </dl>
+            ) : (
+              <p className="text-stone-400 text-xs">Sin datos reportados aún</p>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  )
+}
+
+function TelemetryCharts({ espacioId }: { espacioId: string }) {
+  const [data, setData] = useState<TelemetryAggregation[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    iotApi.getTelemetry(espacioId, { limit: 60 })
+      .then(setData)
+      .catch(() => {})
+      .finally(() => setLoading(false))
+  }, [espacioId])
+
+  const chartData = data.map((d) => ({
+    time: formatTime(d.windowStart),
+    tempC: d.tempCAvg,
+    co2: d.co2PpmAvg,
+    ocupacion: d.ocupacionAvg,
+  }))
+
+  if (loading) return <div className="h-48 flex items-center justify-center text-stone-400 animate-pulse">Cargando telemetría…</div>
+  if (data.length === 0) return <div className="h-48 flex items-center justify-center text-stone-400">Sin datos de telemetría</div>
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <p className="text-xs text-stone-500 mb-2 font-medium">Temperatura (°C)</p>
+        <ResponsiveContainer width="100%" height={150}>
+          <AreaChart data={chartData}>
+            <defs>
+              <linearGradient id="tempGrad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="#0d9488" stopOpacity={0.3} />
+                <stop offset="95%" stopColor="#0d9488" stopOpacity={0} />
+              </linearGradient>
+            </defs>
+            <CartesianGrid strokeDasharray="3 3" stroke="#f5f5f4" />
+            <XAxis dataKey="time" tick={{ fontSize: 10 }} />
+            <YAxis tick={{ fontSize: 10 }} domain={['auto', 'auto']} />
+            <Tooltip />
+            <Area type="monotone" dataKey="tempC" stroke="#0d9488" fill="url(#tempGrad)" name="Temp °C" dot={false} />
+          </AreaChart>
+        </ResponsiveContainer>
+      </div>
+
+      <div>
+        <p className="text-xs text-stone-500 mb-2 font-medium">CO₂ (ppm)</p>
+        <ResponsiveContainer width="100%" height={150}>
+          <LineChart data={chartData}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#f5f5f4" />
+            <XAxis dataKey="time" tick={{ fontSize: 10 }} />
+            <YAxis tick={{ fontSize: 10 }} />
+            <Tooltip />
+            <Line type="monotone" dataKey="co2" stroke="#f59e0b" name="CO₂ ppm" dot={false} strokeWidth={2} />
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
+
+      <div>
+        <p className="text-xs text-stone-500 mb-2 font-medium">Ocupación</p>
+        <ResponsiveContainer width="100%" height={120}>
+          <AreaChart data={chartData}>
+            <defs>
+              <linearGradient id="ocupGrad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
+                <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+              </linearGradient>
+            </defs>
+            <CartesianGrid strokeDasharray="3 3" stroke="#f5f5f4" />
+            <XAxis dataKey="time" tick={{ fontSize: 10 }} />
+            <YAxis tick={{ fontSize: 10 }} allowDecimals={false} />
+            <Tooltip />
+            <Area type="monotone" dataKey="ocupacion" stroke="#10b981" fill="url(#ocupGrad)" name="Ocupación" dot={false} />
+          </AreaChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
+  )
+}
+
+function AlertsPanel({ espacioId }: { espacioId: string }) {
+  const [alerts, setAlerts] = useState<Alert[]>([])
+
+  useEffect(() => {
+    iotApi.getAlerts(espacioId).then(setAlerts).catch(() => {})
+  }, [espacioId])
+
+  const open = alerts.filter((a) => !a.closedAt)
+  const closed = alerts.filter((a) => a.closedAt)
+
+  return (
+    <div className="space-y-3">
+      {open.length === 0 && (
+        <p className="text-sm text-stone-400">✅ Sin alertas activas</p>
+      )}
+      {open.map((a) => (
+        <AlertUI key={a.id} className="border-orange-200 bg-orange-50">
+          <AlertDescription className="flex items-center justify-between">
+            <div>
+              <span className="font-medium text-orange-700">{ALERT_KIND_LABELS[a.kind]}</span>
+              <p className="text-xs text-orange-600 mt-0.5">{a.message}</p>
+            </div>
+            <Badge className="bg-orange-100 text-orange-700 hover:bg-orange-100">Activa</Badge>
+          </AlertDescription>
+        </AlertUI>
+      ))}
+      {closed.length > 0 && (
+        <div className="space-y-1.5">
+          <p className="text-xs text-stone-400 font-medium pt-2">Alertas cerradas</p>
+          {closed.slice(0, 5).map((a) => (
+            <div key={a.id} className="flex items-center justify-between text-xs text-stone-500 bg-stone-50 px-3 py-2 rounded">
+              <span>{ALERT_KIND_LABELS[a.kind]}</span>
+              <span>{new Date(a.closedAt!).toLocaleString('es-MX', { dateStyle: 'short', timeStyle: 'short' })}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+export default function IotPage() {
+  const { apiKey, role } = useAuth()
+  const isAdmin = role === 'ADMIN'
+  const [espacios, setEspacios] = useState<Espacio[]>([])
+  const [selectedId, setSelectedId] = useState<string>('')
+  const [liveAlerts, setLiveAlerts] = useState<SSEAlertEvent[]>([])
+
+  useEffect(() => {
+    espaciosApi.list().then((esp) => {
+      setEspacios(esp)
+      if (esp.length > 0) setSelectedId(esp[0].id)
+    }).catch(() => {})
+  }, [])
+
+  // SSE subscription
+  useSSE(apiKey, {
+    onTelemetry: useCallback((e: SSETelemetryEvent) => {
+      // Live telemetry updates could refresh chart here — for now toast
+      if (e.espacioId === selectedId) {
+        // silent update
+      }
+    }, [selectedId]),
+    onAlert: useCallback((e: SSEAlertEvent) => {
+      setLiveAlerts((prev) => [e, ...prev].slice(0, 10))
+      toast.error(`⚠️ ${ALERT_KIND_LABELS[e.kind] ?? e.kind} — ${e.message ?? ''}`, { duration: 6000 })
+    }, []),
+  })
+
+  const selectedEspacio = espacios.find((e) => e.id === selectedId)
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div>
+          <h1 className="text-2xl font-bold text-stone-800">IoT Dashboard</h1>
+          <p className="text-sm text-stone-500 mt-0.5">Telemetría en tiempo real y gestión de dispositivos</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-stone-400">Espacio:</span>
+          <Select value={selectedId} onValueChange={setSelectedId}>
+            <SelectTrigger className="w-52">
+              <SelectValue placeholder="Seleccionar espacio…" />
+            </SelectTrigger>
+            <SelectContent>
+              {espacios.map((e) => (
+                <SelectItem key={e.id} value={e.id}>{e.nombre}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      {/* Live alert bar */}
+      {liveAlerts.length > 0 && (
+        <AlertUI className="border-orange-200 bg-orange-50">
+          <AlertDescription className="flex items-center justify-between">
+            <span className="text-orange-700 font-medium">
+              🔴 {liveAlerts.length} alerta(s) activa(s) recibida(s) en vivo
+            </span>
+            <Button variant="ghost" size="sm" onClick={() => setLiveAlerts([])} className="text-xs text-orange-600">
+              Limpiar
+            </Button>
+          </AlertDescription>
+        </AlertUI>
+      )}
+
+      {selectedId ? (
+        <Tabs defaultValue="twin">
+          <TabsList className="bg-stone-100">
+            <TabsTrigger value="twin">Digital Twin</TabsTrigger>
+            <TabsTrigger value="telemetry">Telemetría</TabsTrigger>
+            <TabsTrigger value="alerts">Alertas</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="twin" className="mt-4">
+            <div className="mb-3">
+              <h2 className="font-semibold text-stone-700">
+                {selectedEspacio?.nombre ?? selectedId}
+              </h2>
+              <p className="text-xs text-stone-400">Estado deseado vs. reportado</p>
+            </div>
+            <TwinPanel espacioId={selectedId} isAdmin={isAdmin} />
+          </TabsContent>
+
+          <TabsContent value="telemetry" className="mt-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-sm font-semibold text-stone-700">
+                  Historial de telemetría — últimas 60 ventanas de 1 min
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <TelemetryCharts espacioId={selectedId} />
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="alerts" className="mt-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-sm font-semibold text-stone-700">Alertas del espacio</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <AlertsPanel espacioId={selectedId} />
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
+      ) : (
+        <div className="text-center text-stone-400 py-16">Selecciona un espacio para ver su dashboard</div>
+      )}
+    </div>
+  )
+}
