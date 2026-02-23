@@ -2,8 +2,8 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
-import { espaciosApi, lugaresApi } from '@/lib/api'
-import type { Espacio, Lugar, CreateEspacioDto, EspacioTipo } from '@/lib/types'
+import { spacesApi, locationsApi } from '@/lib/api'
+import type { Space, Location, CreateSpaceDto, SpaceType } from '@/lib/types'
 import { useAuth } from '@/contexts/AuthContext'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -28,31 +28,31 @@ import {
 } from '@/components/ui/table'
 import toast from 'react-hot-toast'
 
-const TIPOS: EspacioTipo[] = ['SALA_REUNION', 'ESCRITORIO', 'OFICINA_PRIVADA']
-const TIPO_LABELS: Record<EspacioTipo, string> = {
+const TYPES: SpaceType[] = ['SALA_REUNION', 'ESCRITORIO', 'OFICINA_PRIVADA']
+const TYPE_LABELS: Record<SpaceType, string> = {
   SALA_REUNION: 'Sala de reunión',
   ESCRITORIO: 'Escritorio',
   OFICINA_PRIVADA: 'Oficina privada',
 }
 
-function EspacioForm({
+function SpaceForm({
   initial,
-  lugares,
+  locations,
   onSave,
   onCancel,
 }: {
-  initial?: Partial<CreateEspacioDto>
-  lugares: Lugar[]
-  onSave: (dto: CreateEspacioDto) => Promise<void>
+  initial?: Partial<CreateSpaceDto>
+  locations: Location[]
+  onSave: (dto: CreateSpaceDto) => Promise<void>
   onCancel: () => void
 }) {
-  const [form, setForm] = useState<CreateEspacioDto>({
-    lugarId: initial?.lugarId ?? '',
-    nombre: initial?.nombre ?? '',
-    tipo: initial?.tipo ?? 'ESCRITORIO',
-    capacidad: initial?.capacidad ?? 1,
-    tarifaHora: initial?.tarifaHora ?? 0,
-    activo: initial?.activo ?? true,
+  const [form, setForm] = useState<CreateSpaceDto>({
+    locationId: initial?.locationId ?? '',
+    name: initial?.name ?? '',
+    type: initial?.type ?? 'ESCRITORIO',
+    capacity: initial?.capacity ?? 1,
+    hourlyRate: initial?.hourlyRate ?? 0,
+    active: initial?.active ?? true,
   })
   const [saving, setSaving] = useState(false)
 
@@ -70,40 +70,40 @@ function EspacioForm({
     <form onSubmit={handleSubmit} className="space-y-3">
       <div className="space-y-1">
         <Label>Lugar</Label>
-        <Select value={form.lugarId} onValueChange={(v) => setForm((f) => ({ ...f, lugarId: v }))}>
+        <Select value={form.locationId} onValueChange={(v) => setForm((f) => ({ ...f, locationId: v }))}>
           <SelectTrigger>
             <SelectValue placeholder="Seleccionar lugar…" />
           </SelectTrigger>
           <SelectContent>
-            {lugares.map((l) => (
-              <SelectItem key={l.id} value={l.id}>{l.nombre}</SelectItem>
+            {locations.map((l) => (
+              <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>
             ))}
           </SelectContent>
         </Select>
       </div>
       <div className="space-y-1">
         <Label>Nombre</Label>
-        <Input value={form.nombre} onChange={(e) => setForm((f) => ({ ...f, nombre: e.target.value }))} required />
+        <Input value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} required />
       </div>
       <div className="space-y-1">
         <Label>Tipo</Label>
-        <Select value={form.tipo} onValueChange={(v) => setForm((f) => ({ ...f, tipo: v as EspacioTipo }))}>
+        <Select value={form.type} onValueChange={(v) => setForm((f) => ({ ...f, type: v as SpaceType }))}>
           <SelectTrigger>
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            {TIPOS.map((t) => <SelectItem key={t} value={t}>{TIPO_LABELS[t]}</SelectItem>)}
+            {TYPES.map((t) => <SelectItem key={t} value={t}>{TYPE_LABELS[t]}</SelectItem>)}
           </SelectContent>
         </Select>
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1">
           <Label>Capacidad</Label>
-          <Input type="number" min={1} value={form.capacidad} onChange={(e) => setForm((f) => ({ ...f, capacidad: Number(e.target.value) }))} required />
+          <Input type="number" min={1} value={form.capacity} onChange={(e) => setForm((f) => ({ ...f, capacity: Number(e.target.value) }))} required />
         </div>
         <div className="space-y-1">
           <Label>Tarifa/hora ($)</Label>
-          <Input type="number" min={0} step="0.01" value={form.tarifaHora} onChange={(e) => setForm((f) => ({ ...f, tarifaHora: Number(e.target.value) }))} required />
+          <Input type="number" min={0} step="0.01" value={form.hourlyRate} onChange={(e) => setForm((f) => ({ ...f, hourlyRate: Number(e.target.value) }))} required />
         </div>
       </div>
       <div className="flex gap-2 justify-end pt-2">
@@ -116,21 +116,21 @@ function EspacioForm({
   )
 }
 
-export default function EspaciosPage() {
+export default function SpacesPage() {
   const { role } = useAuth()
   const isAdmin = role === 'ADMIN'
-  const [espacios, setEspacios] = useState<Espacio[]>([])
-  const [lugares, setLugares] = useState<Lugar[]>([])
-  const [filterLugar, setFilterLugar] = useState<string>('__all__')
+  const [spaces, setSpaces] = useState<Space[]>([])
+  const [locations, setLocations] = useState<Location[]>([])
+  const [filterLocation, setFilterLocation] = useState<string>('__all__')
   const [loading, setLoading] = useState(true)
   const [creating, setCreating] = useState(false)
-  const [editing, setEditing] = useState<Espacio | null>(null)
+  const [editing, setEditing] = useState<Space | null>(null)
 
   const fetchAll = useCallback(async () => {
     try {
-      const [esp, lug] = await Promise.all([espaciosApi.list(), lugaresApi.list()])
-      setEspacios(esp)
-      setLugares(lug)
+      const [sp, loc] = await Promise.all([spacesApi.list(), locationsApi.list()])
+      setSpaces(sp)
+      setLocations(loc)
     } catch {
       toast.error('Error al cargar datos')
     } finally {
@@ -140,38 +140,38 @@ export default function EspaciosPage() {
 
   useEffect(() => { fetchAll() }, [fetchAll])
 
-  async function handleCreate(dto: CreateEspacioDto) {
-    await espaciosApi.create(dto)
+  async function handleCreate(dto: CreateSpaceDto) {
+    await spacesApi.create(dto)
     toast.success('Espacio creado')
     setCreating(false)
     fetchAll()
   }
 
-  async function handleUpdate(dto: CreateEspacioDto) {
+  async function handleUpdate(dto: CreateSpaceDto) {
     if (!editing) return
-    await espaciosApi.update(editing.id, dto)
+    await spacesApi.update(editing.id, dto)
     toast.success('Espacio actualizado')
     setEditing(null)
     fetchAll()
   }
 
-  async function handleToggle(espacio: Espacio) {
+  async function handleToggle(space: Space) {
     // Optimistic update
-    setEspacios((prev) =>
-      prev.map((e) => (e.id === espacio.id ? { ...e, activo: !espacio.activo } : e))
+    setSpaces((prev) =>
+      prev.map((e) => (e.id === space.id ? { ...e, active: !space.active } : e))
     )
     try {
-      await espaciosApi.update(espacio.id, { activo: !espacio.activo })
-      toast.success(espacio.activo ? 'Espacio desactivado' : 'Espacio activado')
+      await spacesApi.update(space.id, { active: !space.active })
+      toast.success(space.active ? 'Espacio desactivado' : 'Espacio activado')
     } catch {
       toast.error('Error al actualizar — revirtiendo…')
-      setEspacios((prev) =>
-        prev.map((e) => (e.id === espacio.id ? { ...e, activo: espacio.activo } : e))
+      setSpaces((prev) =>
+        prev.map((e) => (e.id === space.id ? { ...e, active: space.active } : e))
       )
     }
   }
 
-  const filtered = filterLugar === '__all__' ? espacios : espacios.filter((e) => e.lugarId === filterLugar)
+  const filtered = filterLocation === '__all__' ? spaces : spaces.filter((e) => e.locationId === filterLocation)
 
   return (
     <div className="space-y-6">
@@ -181,13 +181,13 @@ export default function EspaciosPage() {
           <p className="text-sm text-stone-500 mt-0.5">Escritorios, salas y oficinas</p>
         </div>
         <div className="flex gap-2 items-center">
-          <Select value={filterLugar} onValueChange={setFilterLugar}>
+          <Select value={filterLocation} onValueChange={setFilterLocation}>
             <SelectTrigger className="w-48">
               <SelectValue placeholder="Todos los lugares" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="__all__">Todos los lugares</SelectItem>
-              {lugares.map((l) => <SelectItem key={l.id} value={l.id}>{l.nombre}</SelectItem>)}
+              {locations.map((l) => <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>)}
             </SelectContent>
           </Select>
           {isAdmin && (
@@ -197,7 +197,7 @@ export default function EspaciosPage() {
               </DialogTrigger>
               <DialogContent>
                 <DialogHeader><DialogTitle>Crear espacio</DialogTitle></DialogHeader>
-                <EspacioForm lugares={lugares} onSave={handleCreate} onCancel={() => setCreating(false)} />
+                <SpaceForm locations={locations} onSave={handleCreate} onCancel={() => setCreating(false)} />
               </DialogContent>
             </Dialog>
           )}
@@ -230,19 +230,19 @@ export default function EspaciosPage() {
                 {filtered.map((e) => (
                   <TableRow key={e.id} className="hover:bg-stone-50">
                     <TableCell className="font-medium text-stone-800">
-                      <Link href={`/dashboard/espacios/${e.id}`} className="hover:text-teal-600 hover:underline">
-                        {e.nombre}
+                      <Link href={`/dashboard/spaces/${e.id}`} className="hover:text-teal-600 hover:underline">
+                        {e.name}
                       </Link>
                     </TableCell>
-                    <TableCell className="text-stone-600 text-sm">{TIPO_LABELS[e.tipo]}</TableCell>
+                    <TableCell className="text-stone-600 text-sm">{TYPE_LABELS[e.type]}</TableCell>
                     <TableCell className="text-stone-500 text-sm">
-                      {lugares.find((l) => l.id === e.lugarId)?.nombre ?? '—'}
+                      {locations.find((l) => l.id === e.locationId)?.name ?? '—'}
                     </TableCell>
-                    <TableCell className="text-right text-stone-600">{e.capacidad}</TableCell>
-                    <TableCell className="text-right text-stone-600">${e.tarifaHora}</TableCell>
+                    <TableCell className="text-right text-stone-600">{e.capacity}</TableCell>
+                    <TableCell className="text-right text-stone-600">${e.hourlyRate}</TableCell>
                     <TableCell>
-                      <Badge className={e.activo ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-100' : 'bg-stone-100 text-stone-500 hover:bg-stone-100'}>
-                        {e.activo ? 'Activo' : 'Inactivo'}
+                      <Badge className={e.active ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-100' : 'bg-stone-100 text-stone-500 hover:bg-stone-100'}>
+                        {e.active ? 'Activo' : 'Inactivo'}
                       </Badge>
                     </TableCell>
                     {isAdmin && (
@@ -256,11 +256,11 @@ export default function EspaciosPage() {
                             </DialogTrigger>
                             <DialogContent>
                               <DialogHeader><DialogTitle>Editar espacio</DialogTitle></DialogHeader>
-                              <EspacioForm initial={e} lugares={lugares} onSave={handleUpdate} onCancel={() => setEditing(null)} />
+                              <SpaceForm initial={e} locations={locations} onSave={handleUpdate} onCancel={() => setEditing(null)} />
                             </DialogContent>
                           </Dialog>
-                          <Button variant="ghost" size="sm" className={e.activo ? 'text-stone-500' : 'text-emerald-600'} onClick={() => handleToggle(e)}>
-                            {e.activo ? 'Desactivar' : 'Activar'}
+                          <Button variant="ghost" size="sm" className={e.active ? 'text-stone-500' : 'text-emerald-600'} onClick={() => handleToggle(e)}>
+                            {e.active ? 'Desactivar' : 'Activar'}
                           </Button>
                         </div>
                       </TableCell>

@@ -7,9 +7,9 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 
 const navItems = [
-  { href: '/dashboard/lugares', label: 'Lugares', icon: '🏢', adminOnly: false },
-  { href: '/dashboard/espacios', label: 'Espacios', icon: '🪑', adminOnly: false },
-  { href: '/dashboard/reservas', label: 'Reservas', icon: '📅', adminOnly: false },
+  { href: '/dashboard/locations', label: 'Lugares', icon: '🏢', adminOnly: false },
+  { href: '/dashboard/spaces', label: 'Espacios', icon: '🪑', adminOnly: false },
+  { href: '/dashboard/bookings', label: 'Reservas', icon: '📅', adminOnly: false },
   { href: '/dashboard/iot', label: 'IoT Dashboard', icon: '📡', adminOnly: false },
 ]
 

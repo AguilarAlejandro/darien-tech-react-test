@@ -11,97 +11,97 @@ export interface PaginatedResponse<T> {
   meta: PaginationMeta
 }
 
-// ─── Lugar ──────────────────────────────────────────────────────────────────
-export interface Lugar {
+// ─── Location ────────────────────────────────────────────────────────────────
+export interface Location {
   id: string
-  nombre: string
-  direccion: string
-  ciudad: string
+  name: string
+  address: string
+  city: string
   createdAt: string
   updatedAt: string
 }
 
-export interface CreateLugarDto {
-  nombre: string
-  direccion: string
-  ciudad: string
+export interface CreateLocationDto {
+  name: string
+  address: string
+  city: string
 }
 
-export type UpdateLugarDto = Partial<CreateLugarDto>
+export type UpdateLocationDto = Partial<CreateLocationDto>
 
-// ─── Espacio ─────────────────────────────────────────────────────────────────
-export interface Espacio {
+// ─── Space ───────────────────────────────────────────────────────────────────
+export interface Space {
   id: string
-  lugarId: string
-  nombre: string
-  tipo: EspacioTipo
-  capacidad: number
-  tarifaHora: number
-  activo: boolean
-  lugar?: Lugar
+  locationId: string
+  name: string
+  type: SpaceType
+  capacity: number
+  hourlyRate: number
+  active: boolean
+  location?: Location
   createdAt: string
   updatedAt: string
 }
 
-export type EspacioTipo = 'SALA_REUNION' | 'ESCRITORIO' | 'OFICINA_PRIVADA'
+export type SpaceType = 'SALA_REUNION' | 'ESCRITORIO' | 'OFICINA_PRIVADA'
 
-export interface CreateEspacioDto {
-  lugarId: string
-  nombre: string
-  tipo: EspacioTipo
-  capacidad: number
-  tarifaHora: number
-  activo?: boolean
+export interface CreateSpaceDto {
+  locationId: string
+  name: string
+  type: SpaceType
+  capacity: number
+  hourlyRate: number
+  active?: boolean
 }
 
-export type UpdateEspacioDto = Partial<Omit<CreateEspacioDto, 'lugarId'>>
+export type UpdateSpaceDto = Partial<Omit<CreateSpaceDto, 'locationId'>>
 
-// ─── Reserva ─────────────────────────────────────────────────────────────────
-export interface Reserva {
+// ─── Booking ─────────────────────────────────────────────────────────────────
+export interface Booking {
   id: string
-  espacioId: string
-  lugarId: string
-  usuarioEmail: string
-  usuarioNombre: string
-  fechaInicio: string
-  fechaFin: string
-  estado: ReservaEstado
-  notas?: string
-  espacio?: Espacio
-  lugar?: Lugar
+  spaceId: string
+  locationId: string
+  userEmail: string
+  userName: string
+  startDate: string
+  endDate: string
+  status: BookingStatus
+  notes?: string
+  space?: Space
+  location?: Location
   createdAt: string
   updatedAt: string
 }
 
-export type ReservaEstado = 'PENDIENTE' | 'CONFIRMADA' | 'CANCELADA' | 'COMPLETADA'
+export type BookingStatus = 'PENDIENTE' | 'CONFIRMADA' | 'CANCELADA' | 'COMPLETADA'
 
-export interface CreateReservaDto {
-  espacioId: string
-  usuarioEmail: string
-  usuarioNombre: string
-  fechaInicio: string
-  fechaFin: string
-  notas?: string
+export interface CreateBookingDto {
+  spaceId: string
+  userEmail: string
+  userName: string
+  startDate: string
+  endDate: string
+  notes?: string
 }
 
-export interface UpdateReservaDto {
-  estado?: ReservaEstado
-  notas?: string
+export interface UpdateBookingDto {
+  status?: BookingStatus
+  notes?: string
 }
 
-export interface FindReservasQuery {
+export interface FindBookingsQuery {
   page?: number
   pageSize?: number
-  espacioId?: string
-  usuarioEmail?: string
-  estado?: ReservaEstado
-  fechaDesde?: string
-  fechaHasta?: string
+  spaceId?: string
+  userEmail?: string
+  status?: BookingStatus
+  dateFrom?: string
+  dateTo?: string
 }
 
 // ─── IoT / Digital Twin ───────────────────────────────────────────────────────
 export interface DesiredState {
-  maxOcupacion: number
+  maxOccupancy: number
   co2AlertThreshold: number
   samplingIntervalSec: number
   hvacEnabled: boolean
@@ -111,7 +111,7 @@ export interface DesiredState {
 export interface ReportedState {
   tempC: number
   co2Ppm: number
-  ocupacionActual: number
+  currentOccupancy: number
   humedadPct: number
   timestamp: string
 }
@@ -125,7 +125,7 @@ export type UpdateDesiredDto = Partial<DesiredState>
 
 export interface TelemetryAggregation {
   id: string
-  espacioId: string
+  spaceId: string
   windowStart: string
   windowEnd: string
   tempCAvg: number | null
@@ -133,31 +133,31 @@ export interface TelemetryAggregation {
   tempCMax: number | null
   co2PpmAvg: number | null
   co2PpmMax: number | null
-  ocupacionAvg: number | null
-  ocupacionMax: number | null
+  occupancyAvg: number | null
+  occupancyMax: number | null
   sampleCount: number
 }
 
 export interface Alert {
   id: string
-  espacioId: string
+  spaceId: string
   kind: AlertKind
   message: string
   openedAt: string
   closedAt: string | null
-  espacio?: Espacio
+  space?: Space
 }
 
 export type AlertKind = 'CO2' | 'OCCUPANCY_MAX' | 'OCCUPANCY_UNEXPECTED'
 
 // ─── SSE Events ──────────────────────────────────────────────────────────────
 export interface SSETelemetryEvent {
-  espacioId: string
+  spaceId: string
   data: ReportedState & { windowStart?: string; windowEnd?: string }
 }
 
 export interface SSEAlertEvent {
-  espacioId: string
+  spaceId: string
   kind: AlertKind
   message: string
   openedAt?: string
@@ -165,7 +165,7 @@ export interface SSEAlertEvent {
 }
 
 export interface SSETwinUpdateEvent {
-  espacioId: string
+  spaceId: string
   desired?: Partial<DesiredState>
   reported?: Partial<ReportedState>
 }

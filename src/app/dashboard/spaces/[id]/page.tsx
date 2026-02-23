@@ -3,8 +3,8 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { espaciosApi, lugaresApi, reservasApi } from '@/lib/api'
-import type { Espacio, Lugar, Reserva } from '@/lib/types'
+import { spacesApi, locationsApi, bookingsApi } from '@/lib/api'
+import type { Space, Location, Booking } from '@/lib/types'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -19,20 +19,20 @@ import {
 import { Separator } from '@/components/ui/separator'
 import toast from 'react-hot-toast'
 
-const TIPO_LABELS: Record<string, string> = {
+const TYPE_LABELS: Record<string, string> = {
   SALA_REUNION: 'Sala de reunión',
   ESCRITORIO: 'Escritorio',
   OFICINA_PRIVADA: 'Oficina privada',
 }
 
-const ESTADO_LABELS: Record<string, string> = {
+const STATUS_LABELS: Record<string, string> = {
   PENDIENTE: 'Pendiente',
   CONFIRMADA: 'Confirmada',
   CANCELADA: 'Cancelada',
   COMPLETADA: 'Completada',
 }
 
-const ESTADO_COLORS: Record<string, string> = {
+const STATUS_COLORS: Record<string, string> = {
   PENDIENTE: 'bg-yellow-100 text-yellow-700 hover:bg-yellow-100',
   CONFIRMADA: 'bg-emerald-100 text-emerald-700 hover:bg-emerald-100',
   CANCELADA: 'bg-red-100 text-red-600 hover:bg-red-100',
@@ -52,28 +52,28 @@ function DetailRow({ label, value }: { label: string; value: React.ReactNode }) 
   )
 }
 
-export default function EspacioDetailPage() {
+export default function SpaceDetailPage() {
   const { id } = useParams<{ id: string }>()
   const router = useRouter()
 
-  const [espacio, setEspacio] = useState<Espacio | null>(null)
-  const [lugar, setLugar] = useState<Lugar | null>(null)
-  const [reservas, setReservas] = useState<Reserva[]>([])
+  const [space, setSpace] = useState<Space | null>(null)
+  const [location, setLocation] = useState<Location | null>(null)
+  const [bookings, setBookings] = useState<Booking[]>([])
   const [loading, setLoading] = useState(true)
 
   const fetchData = useCallback(async () => {
     try {
-      const esp = await espaciosApi.get(id)
-      setEspacio(esp)
-      const [lug, res] = await Promise.all([
-        lugaresApi.get(esp.lugarId),
-        reservasApi.list({ espacioId: id, pageSize: 10 }),
+      const sp = await spacesApi.get(id)
+      setSpace(sp)
+      const [loc, res] = await Promise.all([
+        locationsApi.get(sp.locationId),
+        bookingsApi.list({ spaceId: id, pageSize: 10 }),
       ])
-      setLugar(lug)
-      setReservas(res.data)
+      setLocation(loc)
+      setBookings(res.data)
     } catch {
       toast.error('No se pudo cargar el espacio')
-      router.push('/dashboard/espacios')
+      router.push('/dashboard/spaces')
     } finally {
       setLoading(false)
     }
@@ -87,35 +87,35 @@ export default function EspacioDetailPage() {
     )
   }
 
-  if (!espacio) return null
+  if (!space) return null
 
   return (
     <div className="space-y-6">
       {/* Breadcrumb */}
       <div className="flex items-center gap-2 text-sm text-stone-500">
-        <Link href="/dashboard/espacios" className="hover:text-teal-600 hover:underline">
+        <Link href="/dashboard/spaces" className="hover:text-teal-600 hover:underline">
           Espacios
         </Link>
         <span>/</span>
-        <span className="text-stone-800 font-medium">{espacio.nombre}</span>
+        <span className="text-stone-800 font-medium">{space.name}</span>
       </div>
 
       {/* Header */}
       <div className="flex items-start justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-stone-800">{espacio.nombre}</h1>
+          <h1 className="text-2xl font-bold text-stone-800">{space.name}</h1>
           <p className="text-sm text-stone-500 mt-0.5">
-            {lugar?.nombre ?? '—'} · {TIPO_LABELS[espacio.tipo] ?? espacio.tipo}
+            {location?.name ?? '—'} · {TYPE_LABELS[space.type] ?? space.type}
           </p>
         </div>
         <Badge
           className={
-            espacio.activo
+            space.active
               ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-100 text-sm px-3 py-1'
               : 'bg-stone-100 text-stone-500 hover:bg-stone-100 text-sm px-3 py-1'
           }
         >
-          {espacio.activo ? 'Activo' : 'Inactivo'}
+          {space.active ? 'Activo' : 'Inactivo'}
         </Badge>
       </div>
 
@@ -127,42 +127,42 @@ export default function EspacioDetailPage() {
           </CardHeader>
           <CardContent>
             <Separator className="mb-2" />
-            <DetailRow label="ID" value={<span className="font-mono text-xs text-stone-500">{espacio.id}</span>} />
+            <DetailRow label="ID" value={<span className="font-mono text-xs text-stone-500">{space.id}</span>} />
             <Separator />
-            <DetailRow label="Tipo" value={TIPO_LABELS[espacio.tipo] ?? espacio.tipo} />
+            <DetailRow label="Tipo" value={TYPE_LABELS[space.type] ?? space.type} />
             <Separator />
-            <DetailRow label="Capacidad" value={`${espacio.capacidad} persona${espacio.capacidad !== 1 ? 's' : ''}`} />
+            <DetailRow label="Capacidad" value={`${space.capacity} persona${space.capacity !== 1 ? 's' : ''}`} />
             <Separator />
-            <DetailRow label="Tarifa por hora" value={`$${espacio.tarifaHora}`} />
+            <DetailRow label="Tarifa por hora" value={`$${space.hourlyRate}`} />
             <Separator />
             <DetailRow label="Estado" value={
-              <Badge className={espacio.activo ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-100' : 'bg-stone-100 text-stone-500 hover:bg-stone-100'}>
-                {espacio.activo ? 'Activo' : 'Inactivo'}
+              <Badge className={space.active ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-100' : 'bg-stone-100 text-stone-500 hover:bg-stone-100'}>
+                {space.active ? 'Activo' : 'Inactivo'}
               </Badge>
             } />
             <Separator />
-            <DetailRow label="Creado" value={formatDate(espacio.createdAt)} />
+            <DetailRow label="Creado" value={formatDate(space.createdAt)} />
             <Separator />
-            <DetailRow label="Actualizado" value={formatDate(espacio.updatedAt)} />
+            <DetailRow label="Actualizado" value={formatDate(space.updatedAt)} />
           </CardContent>
         </Card>
 
-        {/* Lugar card */}
+        {/* Location card */}
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-base text-stone-700">Lugar</CardTitle>
           </CardHeader>
           <CardContent>
-            {lugar ? (
+            {location ? (
               <>
                 <Separator className="mb-2" />
-                <DetailRow label="Nombre" value={lugar.nombre} />
+                <DetailRow label="Nombre" value={location.name} />
                 <Separator />
-                <DetailRow label="Dirección" value={lugar.direccion} />
+                <DetailRow label="Dirección" value={location.address} />
                 <Separator />
-                <DetailRow label="Ciudad" value={lugar.ciudad} />
+                <DetailRow label="Ciudad" value={location.city} />
                 <Separator />
-                <DetailRow label="ID" value={<span className="font-mono text-xs text-stone-500">{lugar.id}</span>} />
+                <DetailRow label="ID" value={<span className="font-mono text-xs text-stone-500">{location.id}</span>} />
               </>
             ) : (
               <p className="text-stone-400 text-sm">Sin información del lugar</p>
@@ -171,7 +171,7 @@ export default function EspacioDetailPage() {
         </Card>
       </div>
 
-      {/* Recent reservations */}
+      {/* Recent bookings */}
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-base text-stone-700">Reservas recientes</CardTitle>
@@ -187,24 +187,24 @@ export default function EspacioDetailPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {reservas.length === 0 ? (
+              {bookings.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={4} className="text-center text-stone-400 py-6">
                     Sin reservas registradas
                   </TableCell>
                 </TableRow>
               ) : (
-                reservas.map((r) => (
+                bookings.map((r) => (
                   <TableRow key={r.id} className="hover:bg-stone-50">
                     <TableCell>
-                      <div className="font-medium text-stone-800 text-sm">{r.usuarioNombre}</div>
-                      <div className="text-stone-400 text-xs">{r.usuarioEmail}</div>
+                      <div className="font-medium text-stone-800 text-sm">{r.userName}</div>
+                      <div className="text-stone-400 text-xs">{r.userEmail}</div>
                     </TableCell>
-                    <TableCell className="text-stone-600 text-sm">{formatDate(r.fechaInicio)}</TableCell>
-                    <TableCell className="text-stone-600 text-sm">{formatDate(r.fechaFin)}</TableCell>
+                    <TableCell className="text-stone-600 text-sm">{formatDate(r.startDate)}</TableCell>
+                    <TableCell className="text-stone-600 text-sm">{formatDate(r.endDate)}</TableCell>
                     <TableCell>
-                      <Badge className={ESTADO_COLORS[r.estado]}>
-                        {ESTADO_LABELS[r.estado]}
+                      <Badge className={STATUS_COLORS[r.status]}>
+                        {STATUS_LABELS[r.status]}
                       </Badge>
                     </TableCell>
                   </TableRow>
@@ -216,13 +216,13 @@ export default function EspacioDetailPage() {
       </Card>
 
       <div className="flex gap-2">
-        <Button variant="outline" onClick={() => router.push('/dashboard/espacios')}>
+        <Button variant="outline" onClick={() => router.push('/dashboard/spaces')}>
           ← Volver a espacios
         </Button>
         <Button
           variant="outline"
           className="text-teal-600 border-teal-200 hover:bg-teal-50"
-          onClick={() => router.push(`/dashboard/reservas`)}
+          onClick={() => router.push(`/dashboard/bookings`)}
         >
           Ver todas las reservas
         </Button>

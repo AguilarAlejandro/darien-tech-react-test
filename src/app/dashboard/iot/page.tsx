@@ -1,8 +1,8 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { espaciosApi, iotApi } from '@/lib/api'
-import type { Espacio, DigitalTwin, TelemetryAggregation, Alert, AlertKind, SSETelemetryEvent, SSEAlertEvent } from '@/lib/types'
+import { spacesApi, iotApi } from '@/lib/api'
+import type { Space, DigitalTwin, TelemetryAggregation, Alert, AlertKind, SSETelemetryEvent, SSEAlertEvent } from '@/lib/types'
 import { useAuth } from '@/contexts/AuthContext'
 import { useSSE } from '@/hooks/useSSE'
 import { Button } from '@/components/ui/button'
@@ -38,10 +38,10 @@ function formatTime(iso: string) {
 }
 
 function TwinPanel({
-  espacioId,
+  spaceId,
   isAdmin,
 }: {
-  espacioId: string
+  spaceId: string
   isAdmin: boolean
 }) {
   const [twin, setTwin] = useState<DigitalTwin | null>(null)
@@ -51,20 +51,20 @@ function TwinPanel({
 
   const fetchTwin = useCallback(async () => {
     try {
-      const data = await iotApi.getTwin(espacioId)
+      const data = await iotApi.getTwin(spaceId)
       setTwin(data)
       setDesired(data.desired)
     } catch {
       toast.error('Error al cargar digital twin')
     }
-  }, [espacioId])
+  }, [spaceId])
 
   useEffect(() => { fetchTwin() }, [fetchTwin])
 
   async function handleSave() {
     setSaving(true)
     try {
-      const updated = await iotApi.updateDesired(espacioId, desired)
+      const updated = await iotApi.updateDesired(spaceId, desired)
       setTwin(updated)
       setEditing(false)
       toast.success('Estado deseado actualizado')
@@ -97,7 +97,7 @@ function TwinPanel({
               <div className="space-y-2">
                 {(
                   [
-                    ['maxOcupacion', 'Max. ocupación', 'number'],
+                  ['maxOccupancy', 'Max. ocupación', 'number'],
                     ['co2AlertThreshold', 'Umbral CO₂ (ppm)', 'number'],
                     ['samplingIntervalSec', 'Intervalo muestreo (s)', 'number'],
                     ['lightingLevel', 'Nivel de luz (0-100)', 'number'],
@@ -120,7 +120,7 @@ function TwinPanel({
             ) : (
               <dl className="space-y-1.5">
                 {[
-                  ['Max. ocupación', twin.desired.maxOcupacion],
+                  ['Max. ocupación', twin.desired.maxOccupancy],
                   ['Umbral CO₂', `${twin.desired.co2AlertThreshold} ppm`],
                   ['Intervalo muestreo', `${twin.desired.samplingIntervalSec}s`],
                   ['Nivel de luz', `${twin.desired.lightingLevel}%`],
@@ -147,7 +147,7 @@ function TwinPanel({
                 {[
                   ['Temperatura', `${twin.reported.tempC.toFixed(1)} °C`],
                   ['CO₂', `${twin.reported.co2Ppm} ppm`],
-                  ['Ocupación actual', twin.reported.ocupacionActual],
+                  ['Ocupación actual', twin.reported.currentOccupancy],
                   ['Humedad', `${twin.reported.humedadPct.toFixed(0)}%`],
                   ['Última lectura', formatTime(twin.reported.timestamp)],
                 ].map(([label, value]) => (
@@ -167,22 +167,22 @@ function TwinPanel({
   )
 }
 
-function TelemetryCharts({ espacioId }: { espacioId: string }) {
+function TelemetryCharts({ spaceId }: { spaceId: string }) {
   const [data, setData] = useState<TelemetryAggregation[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    iotApi.getTelemetry(espacioId, { limit: 60 })
+    iotApi.getTelemetry(spaceId, { limit: 60 })
       .then(setData)
       .catch(() => {})
       .finally(() => setLoading(false))
-  }, [espacioId])
+  }, [spaceId])
 
   const chartData = data.map((d) => ({
     time: formatTime(d.windowStart),
     tempC: d.tempCAvg,
     co2: d.co2PpmAvg,
-    ocupacion: d.ocupacionAvg,
+    occupancy: d.occupancyAvg,
   }))
 
   if (loading) return <div className="h-48 flex items-center justify-center text-stone-400 animate-pulse">Cargando telemetría…</div>
@@ -236,7 +236,7 @@ function TelemetryCharts({ espacioId }: { espacioId: string }) {
             <XAxis dataKey="time" tick={{ fontSize: 10 }} />
             <YAxis tick={{ fontSize: 10 }} allowDecimals={false} />
             <Tooltip />
-            <Area type="monotone" dataKey="ocupacion" stroke="#10b981" fill="url(#ocupGrad)" name="Ocupación" dot={false} />
+            <Area type="monotone" dataKey="occupancy" stroke="#10b981" fill="url(#ocupGrad)" name="Ocupación" dot={false} />
           </AreaChart>
         </ResponsiveContainer>
       </div>
@@ -244,12 +244,12 @@ function TelemetryCharts({ espacioId }: { espacioId: string }) {
   )
 }
 
-function AlertsPanel({ espacioId }: { espacioId: string }) {
+function AlertsPanel({ spaceId }: { spaceId: string }) {
   const [alerts, setAlerts] = useState<Alert[]>([])
 
   useEffect(() => {
-    iotApi.getAlerts(espacioId).then(setAlerts).catch(() => {})
-  }, [espacioId])
+    iotApi.getAlerts(spaceId).then(setAlerts).catch(() => {})
+  }, [spaceId])
 
   const open = alerts.filter((a) => !a.closedAt)
   const closed = alerts.filter((a) => a.closedAt)
@@ -288,14 +288,14 @@ function AlertsPanel({ espacioId }: { espacioId: string }) {
 export default function IotPage() {
   const { apiKey, role } = useAuth()
   const isAdmin = role === 'ADMIN'
-  const [espacios, setEspacios] = useState<Espacio[]>([])
+  const [spaces, setSpaces] = useState<Space[]>([])
   const [selectedId, setSelectedId] = useState<string>('')
   const [liveAlerts, setLiveAlerts] = useState<SSEAlertEvent[]>([])
 
   useEffect(() => {
-    espaciosApi.list().then((esp) => {
-      setEspacios(esp)
-      if (esp.length > 0) setSelectedId(esp[0].id)
+    spacesApi.list().then((sp) => {
+      setSpaces(sp)
+      if (sp.length > 0) setSelectedId(sp[0].id)
     }).catch(() => {})
   }, [])
 
@@ -303,7 +303,7 @@ export default function IotPage() {
   useSSE(apiKey, {
     onTelemetry: useCallback((e: SSETelemetryEvent) => {
       // Live telemetry updates could refresh chart here — for now toast
-      if (e.espacioId === selectedId) {
+      if (e.spaceId === selectedId) {
         // silent update
       }
     }, [selectedId]),
@@ -313,7 +313,7 @@ export default function IotPage() {
     }, []),
   })
 
-  const selectedEspacio = espacios.find((e) => e.id === selectedId)
+  const selectedSpace = spaces.find((e) => e.id === selectedId)
 
   return (
     <div className="space-y-6">
@@ -329,8 +329,8 @@ export default function IotPage() {
               <SelectValue placeholder="Seleccionar espacio…" />
             </SelectTrigger>
             <SelectContent>
-              {espacios.map((e) => (
-                <SelectItem key={e.id} value={e.id}>{e.nombre}</SelectItem>
+              {spaces.map((e) => (
+                <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -362,11 +362,11 @@ export default function IotPage() {
           <TabsContent value="twin" className="mt-4">
             <div className="mb-3">
               <h2 className="font-semibold text-stone-700">
-                {selectedEspacio?.nombre ?? selectedId}
+                {selectedSpace?.name ?? selectedId}
               </h2>
               <p className="text-xs text-stone-400">Estado deseado vs. reportado</p>
             </div>
-            <TwinPanel espacioId={selectedId} isAdmin={isAdmin} />
+            <TwinPanel spaceId={selectedId} isAdmin={isAdmin} />
           </TabsContent>
 
           <TabsContent value="telemetry" className="mt-4">
@@ -377,7 +377,7 @@ export default function IotPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <TelemetryCharts espacioId={selectedId} />
+                <TelemetryCharts spaceId={selectedId} />
               </CardContent>
             </Card>
           </TabsContent>
@@ -388,7 +388,7 @@ export default function IotPage() {
                 <CardTitle className="text-sm font-semibold text-stone-700">Alertas del espacio</CardTitle>
               </CardHeader>
               <CardContent>
-                <AlertsPanel espacioId={selectedId} />
+                <AlertsPanel spaceId={selectedId} />
               </CardContent>
             </Card>
           </TabsContent>

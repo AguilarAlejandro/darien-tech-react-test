@@ -1,8 +1,8 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { reservasApi, espaciosApi } from '@/lib/api'
-import type { Reserva, CreateReservaDto, ReservaEstado, Espacio } from '@/lib/types'
+import { bookingsApi, spacesApi } from '@/lib/api'
+import type { Booking, CreateBookingDto, BookingStatus, Space } from '@/lib/types'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -27,37 +27,37 @@ import {
 } from '@/components/ui/table'
 import toast from 'react-hot-toast'
 
-const ESTADO_LABELS: Record<ReservaEstado, string> = {
+const STATUS_LABELS: Record<BookingStatus, string> = {
   PENDIENTE: 'Pendiente',
   CONFIRMADA: 'Confirmada',
   CANCELADA: 'Cancelada',
   COMPLETADA: 'Completada',
 }
 
-const ESTADO_COLORS: Record<ReservaEstado, string> = {
+const STATUS_COLORS: Record<BookingStatus, string> = {
   PENDIENTE: 'bg-yellow-100 text-yellow-700 hover:bg-yellow-100',
   CONFIRMADA: 'bg-emerald-100 text-emerald-700 hover:bg-emerald-100',
   CANCELADA: 'bg-red-100 text-red-600 hover:bg-red-100',
   COMPLETADA: 'bg-stone-100 text-stone-500 hover:bg-stone-100',
 }
 
-function CreateReservaForm({
-  espacios,
+function CreateBookingForm({
+  spaces,
   onSave,
   onCancel,
 }: {
-  espacios: Espacio[]
-  onSave: (dto: CreateReservaDto) => Promise<void>
+  spaces: Space[]
+  onSave: (dto: CreateBookingDto) => Promise<void>
   onCancel: () => void
 }) {
   const today = new Date().toISOString().slice(0, 10)
-  const [form, setForm] = useState<CreateReservaDto>({
-    espacioId: '',
-    usuarioEmail: '',
-    usuarioNombre: '',
-    fechaInicio: `${today}T09:00`,
-    fechaFin: `${today}T10:00`,
-    notas: '',
+  const [form, setForm] = useState<CreateBookingDto>({
+    spaceId: '',
+    userEmail: '',
+    userName: '',
+    startDate: `${today}T09:00`,
+    endDate: `${today}T10:00`,
+    notes: '',
   })
   const [saving, setSaving] = useState(false)
 
@@ -67,27 +67,27 @@ function CreateReservaForm({
     try {
       await onSave({
         ...form,
-        fechaInicio: new Date(form.fechaInicio).toISOString(),
-        fechaFin: new Date(form.fechaFin).toISOString(),
+        startDate: new Date(form.startDate).toISOString(),
+        endDate: new Date(form.endDate).toISOString(),
       })
     } finally {
       setSaving(false)
     }
   }
 
-  const activeEspacios = espacios.filter((e) => e.activo)
+  const activeSpaces = spaces.filter((e) => e.active)
 
   return (
     <form onSubmit={handleSubmit} className="space-y-3">
       <div className="space-y-1">
         <Label>Espacio</Label>
-        <Select value={form.espacioId} onValueChange={(v) => setForm((f) => ({ ...f, espacioId: v }))}>
+        <Select value={form.spaceId} onValueChange={(v) => setForm((f) => ({ ...f, spaceId: v }))}>
           <SelectTrigger>
             <SelectValue placeholder="Seleccionar espacio…" />
           </SelectTrigger>
           <SelectContent>
-            {activeEspacios.map((e) => (
-              <SelectItem key={e.id} value={e.id}>{e.nombre} — ${e.tarifaHora}/h</SelectItem>
+            {activeSpaces.map((e) => (
+              <SelectItem key={e.id} value={e.id}>{e.name} — ${e.hourlyRate}/h</SelectItem>
             ))}
           </SelectContent>
         </Select>
@@ -95,30 +95,30 @@ function CreateReservaForm({
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1">
           <Label>Nombre</Label>
-          <Input value={form.usuarioNombre} onChange={(e) => setForm((f) => ({ ...f, usuarioNombre: e.target.value }))} required />
+          <Input value={form.userName} onChange={(e) => setForm((f) => ({ ...f, userName: e.target.value }))} required />
         </div>
         <div className="space-y-1">
           <Label>Email</Label>
-          <Input type="email" value={form.usuarioEmail} onChange={(e) => setForm((f) => ({ ...f, usuarioEmail: e.target.value }))} required />
+          <Input type="email" value={form.userEmail} onChange={(e) => setForm((f) => ({ ...f, userEmail: e.target.value }))} required />
         </div>
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1">
           <Label>Inicio</Label>
-          <Input type="datetime-local" value={form.fechaInicio} onChange={(e) => setForm((f) => ({ ...f, fechaInicio: e.target.value }))} required />
+          <Input type="datetime-local" value={form.startDate} onChange={(e) => setForm((f) => ({ ...f, startDate: e.target.value }))} required />
         </div>
         <div className="space-y-1">
           <Label>Fin</Label>
-          <Input type="datetime-local" value={form.fechaFin} onChange={(e) => setForm((f) => ({ ...f, fechaFin: e.target.value }))} required />
+          <Input type="datetime-local" value={form.endDate} onChange={(e) => setForm((f) => ({ ...f, endDate: e.target.value }))} required />
         </div>
       </div>
       <div className="space-y-1">
         <Label>Notas (opcional)</Label>
-        <Textarea value={form.notas} onChange={(e) => setForm((f) => ({ ...f, notas: e.target.value }))} rows={2} />
+        <Textarea value={form.notes} onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))} rows={2} />
       </div>
       <div className="flex gap-2 justify-end pt-2">
         <Button type="button" variant="outline" onClick={onCancel}>Cancelar</Button>
-        <Button type="submit" className="bg-teal-600 hover:bg-teal-700 text-white" disabled={saving || !form.espacioId}>
+        <Button type="submit" className="bg-teal-600 hover:bg-teal-700 text-white" disabled={saving || !form.spaceId}>
           {saving ? 'Reservando…' : 'Crear reserva'}
         </Button>
       </div>
@@ -130,43 +130,43 @@ function formatDate(iso: string) {
   return new Date(iso).toLocaleString('es-MX', { dateStyle: 'short', timeStyle: 'short' })
 }
 
-export default function ReservasPage() {
-  const [reservas, setReservas] = useState<Reserva[]>([])
-  const [espacios, setEspacios] = useState<Espacio[]>([])
+export default function BookingsPage() {
+  const [bookings, setBookings] = useState<Booking[]>([])
+  const [spaces, setSpaces] = useState<Space[]>([])
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
   const [creating, setCreating] = useState(false)
   const [loading, setLoading] = useState(true)
   const [filterEmail, setFilterEmail] = useState('')
-  const [filterEstado, setFilterEstado] = useState<ReservaEstado | '__all__'>('__all__')
+  const [filterStatus, setFilterStatus] = useState<BookingStatus | '__all__'>('__all__')
 
   const PAGE_SIZE = 10
 
-  const fetchReservas = useCallback(async () => {
+  const fetchBookings = useCallback(async () => {
     setLoading(true)
     try {
       const params: Record<string, unknown> = { page, pageSize: PAGE_SIZE }
-      if (filterEmail) params.usuarioEmail = filterEmail
-      if (filterEstado !== '__all__') params.estado = filterEstado
-      const result = await reservasApi.list(params as Parameters<typeof reservasApi.list>[0])
-      setReservas(result.data)
+      if (filterEmail) params.userEmail = filterEmail
+      if (filterStatus !== '__all__') params.status = filterStatus
+      const result = await bookingsApi.list(params as Parameters<typeof bookingsApi.list>[0])
+      setBookings(result.data)
       setTotal(result.meta.total)
     } catch {
       toast.error('Error al cargar reservas')
     } finally {
       setLoading(false)
     }
-  }, [page, filterEmail, filterEstado])
+  }, [page, filterEmail, filterStatus])
 
-  useEffect(() => { fetchReservas() }, [fetchReservas])
-  useEffect(() => { espaciosApi.list().then(setEspacios).catch(() => {}) }, [])
+  useEffect(() => { fetchBookings() }, [fetchBookings])
+  useEffect(() => { spacesApi.list().then(setSpaces).catch(() => {}) }, [])
 
-  async function handleCreate(dto: CreateReservaDto) {
+  async function handleCreate(dto: CreateBookingDto) {
     try {
-      await reservasApi.create(dto)
+      await bookingsApi.create(dto)
       toast.success('Reserva creada')
       setCreating(false)
-      fetchReservas()
+      fetchBookings()
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
       if (msg?.includes('conflict') || msg?.includes('solapamiento')) {
@@ -182,14 +182,14 @@ export default function ReservasPage() {
 
   async function handleDelete(id: string) {
     // Optimistic remove
-    setReservas((prev) => prev.filter((r) => r.id !== id))
+    setBookings((prev) => prev.filter((r) => r.id !== id))
     setTotal((prev) => prev - 1)
     try {
-      await reservasApi.delete(id)
+      await bookingsApi.delete(id)
       toast.success('Reserva eliminada')
     } catch {
       toast.error('Error al eliminar — recargando…')
-      fetchReservas()
+      fetchBookings()
     }
   }
 
@@ -209,14 +209,14 @@ export default function ReservasPage() {
             onChange={(e) => { setFilterEmail(e.target.value); setPage(1) }}
             className="w-48"
           />
-          <Select value={filterEstado} onValueChange={(v) => { setFilterEstado(v as ReservaEstado | '__all__'); setPage(1) }}>
+          <Select value={filterStatus} onValueChange={(v) => { setFilterStatus(v as BookingStatus | '__all__'); setPage(1) }}>
             <SelectTrigger className="w-40">
               <SelectValue placeholder="Estado" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="__all__">Todos los estados</SelectItem>
-              {(Object.keys(ESTADO_LABELS) as ReservaEstado[]).map((k) => (
-                <SelectItem key={k} value={k}>{ESTADO_LABELS[k]}</SelectItem>
+              {(Object.keys(STATUS_LABELS) as BookingStatus[]).map((k) => (
+                <SelectItem key={k} value={k}>{STATUS_LABELS[k]}</SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -226,7 +226,7 @@ export default function ReservasPage() {
             </DialogTrigger>
             <DialogContent className="max-w-lg">
               <DialogHeader><DialogTitle>Crear reserva</DialogTitle></DialogHeader>
-              <CreateReservaForm espacios={espacios} onSave={handleCreate} onCancel={() => setCreating(false)} />
+              <CreateBookingForm spaces={spaces} onSave={handleCreate} onCancel={() => setCreating(false)} />
             </DialogContent>
           </Dialog>
         </div>
@@ -249,29 +249,29 @@ export default function ReservasPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {reservas.length === 0 && (
+                {bookings.length === 0 && (
                   <TableRow>
                     <TableCell colSpan={6} className="text-center text-stone-400 py-8">Sin resultados</TableCell>
                   </TableRow>
                 )}
-                {reservas.map((r) => {
-                  const espacio = espacios.find((e) => e.id === r.espacioId)
+                {bookings.map((r) => {
+                  const space = spaces.find((e) => e.id === r.spaceId)
                   return (
                     <TableRow key={r.id} className="hover:bg-stone-50">
                       <TableCell>
-                        <div className="font-medium text-stone-800 text-sm">{r.usuarioNombre}</div>
-                        <div className="text-stone-400 text-xs">{r.usuarioEmail}</div>
+                        <div className="font-medium text-stone-800 text-sm">{r.userName}</div>
+                        <div className="text-stone-400 text-xs">{r.userEmail}</div>
                       </TableCell>
                       <TableCell className="text-stone-600 text-sm">
-                        {espacio?.nombre ?? r.espacioId.slice(0, 8)}
+                        {space?.name ?? r.spaceId.slice(0, 8)}
                       </TableCell>
-                      <TableCell className="text-stone-600 text-sm">{formatDate(r.fechaInicio)}</TableCell>
-                      <TableCell className="text-stone-600 text-sm">{formatDate(r.fechaFin)}</TableCell>
+                      <TableCell className="text-stone-600 text-sm">{formatDate(r.startDate)}</TableCell>
+                      <TableCell className="text-stone-600 text-sm">{formatDate(r.endDate)}</TableCell>
                       <TableCell>
-                        <Badge className={ESTADO_COLORS[r.estado]}>{ESTADO_LABELS[r.estado]}</Badge>
+                        <Badge className={STATUS_COLORS[r.status]}>{STATUS_LABELS[r.status]}</Badge>
                       </TableCell>
                       <TableCell>
-                        {r.estado !== 'CANCELADA' && r.estado !== 'COMPLETADA' && (
+                        {r.status !== 'CANCELADA' && r.status !== 'COMPLETADA' && (
                           <Button
                             variant="ghost"
                             size="sm"

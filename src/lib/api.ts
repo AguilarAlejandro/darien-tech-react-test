@@ -1,8 +1,8 @@
 import axios from 'axios'
 import type {
-  Lugar, CreateLugarDto, UpdateLugarDto,
-  Espacio, CreateEspacioDto, UpdateEspacioDto,
-  Reserva, CreateReservaDto, UpdateReservaDto, FindReservasQuery,
+  Location, CreateLocationDto, UpdateLocationDto,
+  Space, CreateSpaceDto, UpdateSpaceDto,
+  Booking, CreateBookingDto, UpdateBookingDto, FindBookingsQuery,
   PaginatedResponse,
   DigitalTwin, UpdateDesiredDto, TelemetryAggregation, Alert,
   ApiKey,
@@ -21,51 +21,49 @@ http.interceptors.request.use((config) => {
   return config
 })
 
-// ─── Lugares ─────────────────────────────────────────────────────────────────
-export const lugaresApi = {
-  list: () => http.get<Lugar[]>('/api/v1/lugares').then((r) => r.data),
-  get: (id: string) => http.get<Lugar>(`/api/v1/lugares/${id}`).then((r) => r.data),
-  create: (dto: CreateLugarDto) => http.post<Lugar>('/api/v1/lugares', dto).then((r) => r.data),
-  update: (id: string, dto: UpdateLugarDto) =>
-    http.patch<Lugar>(`/api/v1/lugares/${id}`, dto).then((r) => r.data),
-  delete: (id: string) => http.delete<void>(`/api/v1/lugares/${id}`),
+// ─── Locations ───────────────────────────────────────────────────────────────
+export const locationsApi = {
+  list: () => http.get<Location[]>('/api/v1/locations').then((r) => r.data),
+  get: (id: string) => http.get<Location>(`/api/v1/locations/${id}`).then((r) => r.data),
+  create: (dto: CreateLocationDto) => http.post<Location>('/api/v1/locations', dto).then((r) => r.data),
+  update: (id: string, dto: UpdateLocationDto) =>
+    http.patch<Location>(`/api/v1/locations/${id}`, dto).then((r) => r.data),
+  delete: (id: string) => http.delete<void>(`/api/v1/locations/${id}`),
 }
 
-// ─── Espacios ────────────────────────────────────────────────────────────────
-export const espaciosApi = {
-  list: (params?: { lugarId?: string; tipo?: string; active?: boolean }) =>
-    http.get<Espacio[]>('/api/v1/espacios', { params }).then((r) => r.data),
-  get: (id: string) => http.get<Espacio>(`/api/v1/espacios/${id}`).then((r) => r.data),
-  create: (dto: CreateEspacioDto) => http.post<Espacio>('/api/v1/espacios', dto).then((r) => r.data),
-  update: (id: string, dto: UpdateEspacioDto) =>
-    http.patch<Espacio>(`/api/v1/espacios/${id}`, dto).then((r) => r.data),
-  delete: (id: string) => http.delete<void>(`/api/v1/espacios/${id}`),
+// ─── Spaces ──────────────────────────────────────────────────────────────────
+export const spacesApi = {
+  list: (params?: { locationId?: string; type?: string; active?: boolean }) =>
+    http.get<Space[]>('/api/v1/spaces', { params }).then((r) => r.data),
+  get: (id: string) => http.get<Space>(`/api/v1/spaces/${id}`).then((r) => r.data),
+  create: (dto: CreateSpaceDto) => http.post<Space>('/api/v1/spaces', dto).then((r) => r.data),
+  update: (id: string, dto: UpdateSpaceDto) =>
+    http.patch<Space>(`/api/v1/spaces/${id}`, dto).then((r) => r.data),
+  delete: (id: string) => http.delete<void>(`/api/v1/spaces/${id}`),
 }
 
-// ─── Reservas ────────────────────────────────────────────────────────────────
-export const reservasApi = {
-  list: (params?: FindReservasQuery) =>
-    http.get<PaginatedResponse<Reserva>>('/api/v1/reservas', { params }).then((r) => r.data),
-  get: (id: string) => http.get<Reserva>(`/api/v1/reservas/${id}`).then((r) => r.data),
-  create: (dto: CreateReservaDto) =>
-    http.post<Reserva>('/api/v1/reservas', dto).then((r) => r.data),
-  update: (id: string, dto: UpdateReservaDto) =>
-    http.patch<Reserva>(`/api/v1/reservas/${id}`, dto).then((r) => r.data),
-  cancel: (id: string) =>
-    http.patch<Reserva>(`/api/v1/reservas/${id}`, { estado: 'CANCELADA' }).then((r) => r.data),
-  delete: (id: string) => http.delete<void>(`/api/v1/reservas/${id}`),
+// ─── Bookings ────────────────────────────────────────────────────────────────
+export const bookingsApi = {
+  list: (params?: FindBookingsQuery) =>
+    http.get<PaginatedResponse<Booking>>('/api/v1/bookings', { params }).then((r) => r.data),
+  get: (id: string) => http.get<Booking>(`/api/v1/bookings/${id}`).then((r) => r.data),
+  create: (dto: CreateBookingDto) =>
+    http.post<Booking>('/api/v1/bookings', dto).then((r) => r.data),
+  update: (id: string, dto: UpdateBookingDto) =>
+    http.patch<Booking>(`/api/v1/bookings/${id}`, dto).then((r) => r.data),
+  delete: (id: string) => http.delete<void>(`/api/v1/bookings/${id}`),
 }
 
 // ─── IoT ─────────────────────────────────────────────────────────────────────
 export const iotApi = {
-  getTwin: (espacioId: string) =>
-    http.get<DigitalTwin>(`/api/v1/iot/espacios/${espacioId}/twin`).then((r) => r.data),
-  updateDesired: (espacioId: string, dto: UpdateDesiredDto) =>
-    http.patch<DigitalTwin>(`/api/v1/iot/espacios/${espacioId}/desired`, dto).then((r) => r.data),
-  getTelemetry: (espacioId: string, params?: { from?: string; to?: string; limit?: number }) =>
-    http.get<TelemetryAggregation[]>(`/api/v1/iot/espacios/${espacioId}/telemetry`, { params }).then((r) => r.data),
-  getAlerts: (espacioId: string, params?: { open?: boolean }) =>
-    http.get<Alert[]>(`/api/v1/iot/espacios/${espacioId}/alerts`, { params }).then((r) => r.data),
+  getTwin: (spaceId: string) =>
+    http.get<DigitalTwin>(`/api/v1/iot/spaces/${spaceId}/twin`).then((r) => r.data),
+  updateDesired: (spaceId: string, dto: UpdateDesiredDto) =>
+    http.patch<DigitalTwin>(`/api/v1/iot/spaces/${spaceId}/desired`, dto).then((r) => r.data),
+  getTelemetry: (spaceId: string, params?: { from?: string; to?: string; limit?: number }) =>
+    http.get<TelemetryAggregation[]>(`/api/v1/iot/spaces/${spaceId}/telemetry`, { params }).then((r) => r.data),
+  getAlerts: (spaceId: string, params?: { open?: boolean }) =>
+    http.get<Alert[]>(`/api/v1/iot/spaces/${spaceId}/alerts`, { params }).then((r) => r.data),
 }
 
 // ─── Validate API key ─────────────────────────────────────────────────────────
