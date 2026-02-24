@@ -25,6 +25,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { PaginationControls } from '@/components/shared/PaginationControls'
 import toast from 'react-hot-toast'
 import { ZodError } from 'zod'
 
@@ -165,7 +166,7 @@ export default function BookingsPage() {
   }, [page, debouncedEmail])
 
   useEffect(() => { fetchBookings() }, [fetchBookings])
-  useEffect(() => { spacesApi.list().then(setSpaces).catch(() => {}) }, [])
+  useEffect(() => { spacesApi.list({ page: 1, pageSize: 100 }).then((res) => setSpaces(res.data)).catch(() => {}) }, [])
 
   async function handleCreate(dto: CreateBookingDto) {
     try {
@@ -291,16 +292,7 @@ export default function BookingsPage() {
         </CardContent>
       </Card>
 
-      {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="flex items-center justify-between text-sm text-stone-500">
-          <span>Página {page} de {totalPages}</span>
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={() => setPage((p) => p - 1)} disabled={page === 1}>Anterior</Button>
-            <Button variant="outline" size="sm" onClick={() => setPage((p) => p + 1)} disabled={page === totalPages}>Siguiente</Button>
-          </div>
-        </div>
-      )}
+      <PaginationControls page={page} totalPages={totalPages} onPageChange={setPage} />
     </div>
   )
 }

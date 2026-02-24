@@ -90,6 +90,17 @@ export interface FindBookingsQuery {
   dateTo?: string
 }
 
+export interface FindLocationsQuery {
+  page?: number
+  pageSize?: number
+}
+
+export interface FindSpacesQuery {
+  page?: number
+  pageSize?: number
+  locationId?: string
+}
+
 // ─── IoT / Digital Twin ───────────────────────────────────────────────────────
 export interface DesiredState {
   id: string

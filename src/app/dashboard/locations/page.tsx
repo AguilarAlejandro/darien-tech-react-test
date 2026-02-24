@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { locationsApi } from '@/lib/api'
 import type { Location, CreateLocationDto } from '@/lib/types'
 import { useAuth } from '@/contexts/AuthContext'
+import { PaginationControls } from '@/components/shared/PaginationControls'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -85,17 +86,25 @@ export default function LocationsPage() {
   const [creating, setCreating] = useState(false)
   const [editing, setEditing] = useState<Location | null>(null)
   const [deleting, setDeleting] = useState<string | null>(null)
+  const [page, setPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
+  const [total, setTotal] = useState(0)
+
+  const PAGE_SIZE = 10
 
   const fetchLocations = useCallback(async () => {
+    setLoading(true)
     try {
-      const data = await locationsApi.list()
-      setLocations(data)
+      const result = await locationsApi.list({ page, pageSize: PAGE_SIZE })
+      setLocations(result.data)
+      setTotalPages(result.meta.totalPages)
+      setTotal(result.meta.total)
     } catch {
       toast.error('Error al cargar lugares')
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [page])
 
   useEffect(() => {
     fetchLocations()
@@ -135,7 +144,7 @@ export default function LocationsPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-stone-800">Lugares</h1>
-          <p className="text-sm text-stone-500 mt-0.5">Gestión de sedes y ubicaciones</p>
+          <p className="text-sm text-stone-500 mt-0.5">{total} lugares en total</p>
         </div>
         {isAdmin && (
           <Dialog open={creating} onOpenChange={setCreating}>
@@ -231,6 +240,8 @@ export default function LocationsPage() {
           )}
         </CardContent>
       </Card>
+
+      <PaginationControls page={page} totalPages={totalPages} onPageChange={setPage} />
     </div>
   )
 }

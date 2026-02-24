@@ -323,27 +323,17 @@ export default function IotPage() {
   const [selectedId, setSelectedId] = useState<string>('')
   const [liveAlerts, setLiveAlerts] = useState<SSEAlertEvent[]>([])
 
-  // Admin-only guard
-  if (!isAdmin) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-3">
-        <h2 className="text-2xl font-bold text-stone-800">Access Denied</h2>
-        <p className="text-stone-500">The IoT dashboard is only available to administrators.</p>
-      </div>
-    )
-  }
-
   useEffect(() => {
-    spacesApi.list().then((sp) => {
-      setSpaces(sp)
-      if (sp.length > 0) setSelectedId(sp[0].id)
+    if (!isAdmin) return
+    spacesApi.list({ page: 1, pageSize: 100 }).then((res) => {
+      setSpaces(res.data)
+      if (res.data.length > 0) setSelectedId(res.data[0].id)
     }).catch(() => { })
-  }, [])
+  }, [isAdmin])
 
   // SSE subscription
   useSSE(apiKey, {
     onTelemetry: useCallback((e: SSETelemetryEvent) => {
-      // Live telemetry updates could refresh chart here — for now toast
       if (e.spaceId === selectedId) {
         // silent update
       }
@@ -353,6 +343,16 @@ export default function IotPage() {
       toast.error(`⚠️ ${ALERT_KIND_LABELS[e.kind] ?? e.kind}`, { duration: 6000 })
     }, []),
   })
+
+  // Admin-only guard — placed AFTER all hooks to respect Rules of Hooks
+  if (!isAdmin) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-3">
+        <h2 className="text-2xl font-bold text-stone-800">Access Denied</h2>
+        <p className="text-stone-500">The IoT dashboard is only available to administrators.</p>
+      </div>
+    )
+  }
 
   const selectedSpace = spaces.find((e) => e.id === selectedId)
 

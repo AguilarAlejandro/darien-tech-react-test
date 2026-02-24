@@ -2,7 +2,8 @@ import axios from 'axios'
 import type {
   Location, CreateLocationDto, UpdateLocationDto,
   Space, CreateSpaceDto, UpdateSpaceDto,
-  Booking, CreateBookingDto, UpdateBookingDto, FindBookingsQuery,
+  Booking, CreateBookingDto, UpdateBookingDto,
+  FindBookingsQuery, FindLocationsQuery, FindSpacesQuery,
   PaginatedResponse,
   DigitalTwin, UpdateDesiredDto, TelemetryAggregation, Alert,
   ApiKey,
@@ -23,7 +24,8 @@ http.interceptors.request.use((config) => {
 
 // ─── Locations ───────────────────────────────────────────────────────────────
 export const locationsApi = {
-  list: () => http.get<Location[]>('/api/v1/locations').then((r) => r.data),
+  list: (params?: FindLocationsQuery) =>
+    http.get<PaginatedResponse<Location>>('/api/v1/locations', { params }).then((r) => r.data),
   get: (id: string) => http.get<Location>(`/api/v1/locations/${id}`).then((r) => r.data),
   create: (dto: CreateLocationDto) => http.post<Location>('/api/v1/locations', dto).then((r) => r.data),
   update: (id: string, dto: UpdateLocationDto) =>
@@ -33,8 +35,8 @@ export const locationsApi = {
 
 // ─── Spaces ──────────────────────────────────────────────────────────────────
 export const spacesApi = {
-  list: (params?: { locationId?: string }) =>
-    http.get<Space[]>('/api/v1/spaces', { params }).then((r) => r.data),
+  list: (params?: FindSpacesQuery) =>
+    http.get<PaginatedResponse<Space>>('/api/v1/spaces', { params }).then((r) => r.data),
   get: (id: string) => http.get<Space>(`/api/v1/spaces/${id}`).then((r) => r.data),
   create: (dto: CreateSpaceDto) => http.post<Space>('/api/v1/spaces', dto).then((r) => r.data),
   update: (id: string, dto: UpdateSpaceDto) =>
