@@ -289,6 +289,9 @@ function AlertsPanel({ spaceId }: { spaceId: string }) {
               {formatAlertDetail(a.kind, a.metaJson) && (
                 <p className="text-xs text-orange-600 mt-0.5">{formatAlertDetail(a.kind, a.metaJson)}</p>
               )}
+              <p className="text-xs text-orange-500 mt-0.5">
+                Desde: {new Date(a.startedAt).toLocaleString('es-MX', { dateStyle: 'short', timeStyle: 'short' })}
+              </p>
             </div>
             <Badge className="bg-orange-100 text-orange-700 hover:bg-orange-100">Activa</Badge>
           </AlertDescription>
@@ -300,7 +303,11 @@ function AlertsPanel({ spaceId }: { spaceId: string }) {
           {closed.slice(0, 5).map((a) => (
             <div key={a.id} className="flex items-center justify-between text-xs text-stone-500 bg-stone-50 px-3 py-2 rounded">
               <span>{ALERT_KIND_LABELS[a.kind]}</span>
-              <span>{new Date(a.resolvedAt!).toLocaleString('es-MX', { dateStyle: 'short', timeStyle: 'short' })}</span>
+              <span className="text-right">
+                {new Date(a.startedAt).toLocaleString('es-MX', { dateStyle: 'short', timeStyle: 'short' })}
+                {' → '}
+                {new Date(a.resolvedAt!).toLocaleString('es-MX', { dateStyle: 'short', timeStyle: 'short' })}
+              </span>
             </div>
           ))}
         </div>
