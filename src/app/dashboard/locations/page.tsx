@@ -156,17 +156,17 @@ export default function LocationsPage() {
 
       {/* Table */}
       <Card>
-        <CardContent className="p-0">
+        <CardContent className="p-0 overflow-x-auto">
           {loading ? (
             <div className="p-8 text-center text-stone-400 animate-pulse">Cargando…</div>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow className="bg-stone-50">
+                  <TableHead className="text-stone-500 text-xs font-semibold min-w-[260px]">ID</TableHead>
                   <TableHead>Nombre</TableHead>
                   <TableHead>Latitud</TableHead>
                   <TableHead>Longitud</TableHead>
-                  <TableHead className="text-stone-400 text-xs">ID</TableHead>
                   {isAdmin && <TableHead className="w-28" />}
                 </TableRow>
               </TableHeader>
@@ -180,12 +180,10 @@ export default function LocationsPage() {
                 )}
                 {locations.map((l) => (
                   <TableRow key={l.id} className="hover:bg-stone-50">
+                    <TableCell className="text-stone-500 text-xs font-mono break-all">{l.id}</TableCell>
                     <TableCell className="font-medium text-stone-800">{l.name}</TableCell>
                     <TableCell className="text-stone-600">{l.latitude}</TableCell>
                     <TableCell className="text-stone-600">{l.longitude}</TableCell>
-                    <TableCell className="text-stone-300 text-xs font-mono">
-                      {l.id.slice(0, 8)}…
-                    </TableCell>
                     {isAdmin && (
                       <TableCell>
                         <div className="flex gap-1">

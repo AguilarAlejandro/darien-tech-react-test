@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import { useDebounce } from '@/hooks/useDebounce'
 import { bookingsApi, spacesApi } from '@/lib/api'
 import type { Booking, CreateBookingDto, Space } from '@/lib/types'
 import { Button } from '@/components/ui/button'
@@ -115,6 +116,7 @@ export default function BookingsPage() {
   const [creating, setCreating] = useState(false)
   const [loading, setLoading] = useState(true)
   const [filterEmail, setFilterEmail] = useState('')
+  const debouncedEmail = useDebounce(filterEmail, 400)
 
   const PAGE_SIZE = 10
 
@@ -122,7 +124,7 @@ export default function BookingsPage() {
     setLoading(true)
     try {
       const params: Record<string, unknown> = { page, pageSize: PAGE_SIZE }
-      if (filterEmail) params.clientEmail = filterEmail
+      if (debouncedEmail) params.clientEmail = debouncedEmail
       const result = await bookingsApi.list(params as Parameters<typeof bookingsApi.list>[0])
       setBookings(result.data)
       setTotal(result.meta.total)
@@ -131,7 +133,7 @@ export default function BookingsPage() {
     } finally {
       setLoading(false)
     }
-  }, [page, filterEmail])
+  }, [page, debouncedEmail])
 
   useEffect(() => { fetchBookings() }, [fetchBookings])
   useEffect(() => { spacesApi.list().then(setSpaces).catch(() => {}) }, [])
@@ -143,13 +145,25 @@ export default function BookingsPage() {
       setCreating(false)
       fetchBookings()
     } catch (err: unknown) {
-      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
-      if (msg?.includes('conflict') || msg?.includes('Schedule conflict')) {
+      const data = (err as { response?: { data?: { message?: string; details?: { field: string; message: string }[] } } })?.response?.data
+      const msg = data?.message
+      const firstDetail = data?.details?.[0]?.message ?? ''
+      const raw = msg ?? firstDetail
+
+      if (raw.includes('conflict') || raw.includes('Schedule conflict')) {
         toast.error('Conflicto de horario — ese espacio ya está reservado')
-      } else if (msg?.includes('Weekly booking limit')) {
+      } else if (raw.includes('Weekly booking limit')) {
         toast.error('Límite semanal alcanzado (máx. 3 reservas por semana)')
+      } else if (raw.includes('startTime must be on or after bookingDate')) {
+        toast.error('La hora de inicio debe ser igual o posterior a la fecha de la reserva')
+      } else if (raw.includes('endTime must be after startTime')) {
+        toast.error('La hora de fin debe ser posterior a la hora de inicio')
+      } else if (raw.includes('Invalid email')) {
+        toast.error('El correo electrónico del cliente no es válido')
+      } else if (raw.includes('spaceId must be a valid UUID') || raw.includes('Space not found')) {
+        toast.error('Espacio no válido o no encontrado')
       } else {
-        toast.error(msg ?? 'Error al crear reserva')
+        toast.error(raw || 'Error al crear reserva')
       }
       throw err
     }

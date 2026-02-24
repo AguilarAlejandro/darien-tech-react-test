@@ -33,6 +33,32 @@ const ALERT_KIND_LABELS: Record<AlertKind, string> = {
   OCCUPANCY_UNEXPECTED: '👤 Ocupación inesperada',
 }
 
+function formatAlertDetail(kind: AlertKind, meta: Record<string, unknown> | undefined): string {
+  if (!meta) return ''
+  if (kind === 'CO2') {
+    const value = meta.value as number | undefined
+    const threshold = meta.threshold as number | undefined
+    const unit = (meta.unit as string | undefined) ?? 'ppm'
+    if (value !== undefined && threshold !== undefined) {
+      return `${value} ${unit} — umbral: ${threshold} ${unit}`
+    }
+  }
+  if (kind === 'OCCUPANCY_MAX') {
+    const capacity = meta.capacity as number | undefined
+    const occupancy = meta.occupancy as number | undefined
+    if (capacity !== undefined && occupancy !== undefined) {
+      return `Capacidad máxima alcanzada: ${Math.round(occupancy * 100)}% (${capacity} personas)`
+    }
+  }
+  if (kind === 'OCCUPANCY_UNEXPECTED') {
+    const occupancy = meta.occupancy as number | undefined
+    if (occupancy !== undefined) {
+      return `Ocupación fuera de horario: ${Math.round(occupancy * 100)}%`
+    }
+  }
+  return ''
+}
+
 function formatTime(iso: string) {
   return new Date(iso).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })
 }
@@ -168,9 +194,9 @@ function TelemetryCharts({ spaceId }: { spaceId: string }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    iotApi.getTelemetry(spaceId, { limit: 60 })
+    iotApi.getTelemetry(spaceId, { minutes: 60 })
       .then(setData)
-      .catch(() => {})
+      .catch(() => { })
       .finally(() => setLoading(false))
   }, [spaceId])
 
@@ -244,7 +270,7 @@ function AlertsPanel({ spaceId }: { spaceId: string }) {
   const [alerts, setAlerts] = useState<Alert[]>([])
 
   useEffect(() => {
-    iotApi.getAlerts(spaceId).then(setAlerts).catch(() => {})
+    iotApi.getAlerts(spaceId).then(setAlerts).catch(() => { })
   }, [spaceId])
 
   const open = alerts.filter((a) => !a.resolvedAt)
@@ -260,7 +286,9 @@ function AlertsPanel({ spaceId }: { spaceId: string }) {
           <AlertDescription className="flex items-center justify-between">
             <div>
               <span className="font-medium text-orange-700">{ALERT_KIND_LABELS[a.kind]}</span>
-              <p className="text-xs text-orange-600 mt-0.5">{a.metaJson ? JSON.stringify(a.metaJson) : ''}</p>
+              {formatAlertDetail(a.kind, a.metaJson) && (
+                <p className="text-xs text-orange-600 mt-0.5">{formatAlertDetail(a.kind, a.metaJson)}</p>
+              )}
             </div>
             <Badge className="bg-orange-100 text-orange-700 hover:bg-orange-100">Activa</Badge>
           </AlertDescription>
@@ -292,7 +320,7 @@ export default function IotPage() {
     spacesApi.list().then((sp) => {
       setSpaces(sp)
       if (sp.length > 0) setSelectedId(sp[0].id)
-    }).catch(() => {})
+    }).catch(() => { })
   }, [])
 
   // SSE subscription
