@@ -42,8 +42,8 @@ function CreateBookingForm({
     spaceId: '',
     clientEmail: '',
     bookingDate: today,
-    startTime: `${today}T09:00`,
-    endTime: `${today}T10:00`,
+    startTime: '09:00',
+    endTime: '10:00',
   })
   const [saving, setSaving] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
@@ -77,8 +77,8 @@ function CreateBookingForm({
         spaceId: form.spaceId,
         clientEmail: form.clientEmail,
         bookingDate: new Date(form.bookingDate).toISOString(),
-        startTime: new Date(form.startTime).toISOString(),
-        endTime: new Date(form.endTime).toISOString(),
+        startTime: new Date(`${form.bookingDate}T${form.startTime}`).toISOString(),
+        endTime: new Date(`${form.bookingDate}T${form.endTime}`).toISOString(),
       })
     } finally {
       setSaving(false)
@@ -114,12 +114,12 @@ function CreateBookingForm({
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1">
           <Label>Hora inicio</Label>
-          <Input type="datetime-local" className={errors.startTime ? 'border-red-500' : ''} value={form.startTime} onChange={(e) => setForm((f) => ({ ...f, startTime: e.target.value }))} required />
+          <Input type="time" className={errors.startTime ? 'border-red-500' : ''} value={form.startTime} onChange={(e) => setForm((f) => ({ ...f, startTime: e.target.value }))} required />
           {errors.startTime && <p className="text-xs text-red-500">{errors.startTime}</p>}
         </div>
         <div className="space-y-1">
           <Label>Hora fin</Label>
-          <Input type="datetime-local" className={errors.endTime ? 'border-red-500' : ''} value={form.endTime} onChange={(e) => setForm((f) => ({ ...f, endTime: e.target.value }))} required />
+          <Input type="time" className={errors.endTime ? 'border-red-500' : ''} value={form.endTime} onChange={(e) => setForm((f) => ({ ...f, endTime: e.target.value }))} required />
           {errors.endTime && <p className="text-xs text-red-500">{errors.endTime}</p>}
         </div>
       </div>

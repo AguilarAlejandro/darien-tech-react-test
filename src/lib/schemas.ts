@@ -9,23 +9,8 @@ export const createBookingSchema = z
     endTime: z.string().min(1, 'End time is required'),
   })
   .refine(
-    (data) => {
-      const start = new Date(data.startTime)
-      const end = new Date(data.endTime)
-      return end > start
-    },
+    (data) => data.endTime > data.startTime,
     { message: 'End time must be after start time', path: ['endTime'] },
-  )
-  .refine(
-    (data) => {
-      const bookingDate = new Date(data.bookingDate)
-      const start = new Date(data.startTime)
-      // Compare date portions only
-      const bookingDay = new Date(bookingDate.getFullYear(), bookingDate.getMonth(), bookingDate.getDate())
-      const startDay = new Date(start.getFullYear(), start.getMonth(), start.getDate())
-      return startDay >= bookingDay
-    },
-    { message: 'Start time must be on or after the booking date', path: ['startTime'] },
   )
 
 export type CreateBookingFormData = z.infer<typeof createBookingSchema>
