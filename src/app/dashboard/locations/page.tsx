@@ -25,6 +25,8 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import toast from 'react-hot-toast'
+import { ZodError } from 'zod'
+import { createLocationSchema } from '@/lib/schemas'
 
 function LocationForm({
   initial,
@@ -41,9 +43,29 @@ function LocationForm({
     longitude: initial?.longitude ?? 0,
   })
   const [saving, setSaving] = useState(false)
+  const [errors, setErrors] = useState<Record<string, string>>({})
+
+  function validate(): boolean {
+    try {
+      createLocationSchema.parse(form)
+      setErrors({})
+      return true
+    } catch (err) {
+      if (err instanceof ZodError) {
+        const fieldErrors: Record<string, string> = {}
+        for (const issue of err.issues) {
+          const key = issue.path[0]?.toString()
+          if (key && !fieldErrors[key]) fieldErrors[key] = issue.message
+        }
+        setErrors(fieldErrors)
+      }
+      return false
+    }
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
+    if (!validate()) return
     setSaving(true)
     try {
       await onSave(form)
@@ -56,15 +78,18 @@ function LocationForm({
     <form onSubmit={handleSubmit} className="space-y-3">
       <div className="space-y-1">
         <Label>Nombre</Label>
-        <Input value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} required />
+        <Input className={errors.name ? 'border-red-500' : ''} value={form.name} onChange={(e) => { setForm((f) => ({ ...f, name: e.target.value })); setErrors((er) => ({ ...er, name: '' })) }} />
+        {errors.name && <p className="text-xs text-red-500">{errors.name}</p>}
       </div>
       <div className="space-y-1">
         <Label>Latitud</Label>
-        <Input type="number" step="any" value={form.latitude} onChange={(e) => setForm((f) => ({ ...f, latitude: Number(e.target.value) }))} required />
+        <Input type="number" step="any" className={errors.latitude ? 'border-red-500' : ''} value={form.latitude} onChange={(e) => { setForm((f) => ({ ...f, latitude: Number(e.target.value) })); setErrors((er) => ({ ...er, latitude: '' })) }} />
+        {errors.latitude && <p className="text-xs text-red-500">{errors.latitude}</p>}
       </div>
       <div className="space-y-1">
         <Label>Longitud</Label>
-        <Input type="number" step="any" value={form.longitude} onChange={(e) => setForm((f) => ({ ...f, longitude: Number(e.target.value) }))} required />
+        <Input type="number" step="any" className={errors.longitude ? 'border-red-500' : ''} value={form.longitude} onChange={(e) => { setForm((f) => ({ ...f, longitude: Number(e.target.value) })); setErrors((er) => ({ ...er, longitude: '' })) }} />
+        {errors.longitude && <p className="text-xs text-red-500">{errors.longitude}</p>}
       </div>
       <div className="flex gap-2 justify-end pt-2">
         <Button type="button" variant="outline" onClick={onCancel}>
@@ -111,18 +136,48 @@ export default function LocationsPage() {
   }, [fetchLocations])
 
   async function handleCreate(dto: CreateLocationDto) {
-    await locationsApi.create(dto)
-    toast.success('Lugar creado')
-    setCreating(false)
-    fetchLocations()
+    try {
+      await locationsApi.create(dto)
+      toast.success('Lugar creado')
+      setCreating(false)
+      fetchLocations()
+    } catch (err: unknown) {
+      const data = (err as { response?: { data?: { message?: string; details?: { field: string; message: string }[] } } })?.response?.data
+      const raw = data?.message ?? data?.details?.[0]?.message ?? ''
+      if (raw.includes('latitude') || raw.includes('Latitude')) {
+        toast.error('Latitud fuera de rango (-90 a 90)')
+      } else if (raw.includes('longitude') || raw.includes('Longitude')) {
+        toast.error('Longitud fuera de rango (-180 a 180)')
+      } else if (raw.includes('name')) {
+        toast.error('El nombre es requerido')
+      } else {
+        toast.error(raw || 'Error al crear lugar')
+      }
+      throw err
+    }
   }
 
   async function handleUpdate(dto: CreateLocationDto) {
     if (!editing) return
-    await locationsApi.update(editing.id, dto)
-    toast.success('Lugar actualizado')
-    setEditing(null)
-    fetchLocations()
+    try {
+      await locationsApi.update(editing.id, dto)
+      toast.success('Lugar actualizado')
+      setEditing(null)
+      fetchLocations()
+    } catch (err: unknown) {
+      const data = (err as { response?: { data?: { message?: string; details?: { field: string; message: string }[] } } })?.response?.data
+      const raw = data?.message ?? data?.details?.[0]?.message ?? ''
+      if (raw.includes('latitude') || raw.includes('Latitude')) {
+        toast.error('Latitud fuera de rango (-90 a 90)')
+      } else if (raw.includes('longitude') || raw.includes('Longitude')) {
+        toast.error('Longitud fuera de rango (-180 a 180)')
+      } else if (raw.includes('name')) {
+        toast.error('El nombre es requerido')
+      } else {
+        toast.error(raw || 'Error al actualizar lugar')
+      }
+      throw err
+    }
   }
 
   async function handleDelete(id: string) {

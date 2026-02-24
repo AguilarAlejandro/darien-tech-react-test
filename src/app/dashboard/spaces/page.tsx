@@ -27,6 +27,8 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import toast from 'react-hot-toast'
+import { ZodError } from 'zod'
+import { createSpaceSchema } from '@/lib/schemas'
 
 function SpaceForm({
   initial,
@@ -47,9 +49,29 @@ function SpaceForm({
     description: initial?.description ?? '',
   })
   const [saving, setSaving] = useState(false)
+  const [errors, setErrors] = useState<Record<string, string>>({})
+
+  function validate(): boolean {
+    try {
+      createSpaceSchema.parse(form)
+      setErrors({})
+      return true
+    } catch (err) {
+      if (err instanceof ZodError) {
+        const fieldErrors: Record<string, string> = {}
+        for (const issue of err.issues) {
+          const key = issue.path[0]?.toString()
+          if (key && !fieldErrors[key]) fieldErrors[key] = issue.message
+        }
+        setErrors(fieldErrors)
+      }
+      return false
+    }
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
+    if (!validate()) return
     setSaving(true)
     try {
       await onSave(form)
@@ -62,8 +84,8 @@ function SpaceForm({
     <form onSubmit={handleSubmit} className="space-y-3">
       <div className="space-y-1">
         <Label>Lugar</Label>
-        <Select value={form.locationId} onValueChange={(v) => setForm((f) => ({ ...f, locationId: v }))}>
-          <SelectTrigger>
+        <Select value={form.locationId} onValueChange={(v) => { setForm((f) => ({ ...f, locationId: v })); setErrors((e) => ({ ...e, locationId: '' })) }}>
+          <SelectTrigger className={errors.locationId ? 'border-red-500' : ''}>
             <SelectValue placeholder="Seleccionar lugar…" />
           </SelectTrigger>
           <SelectContent>
@@ -72,10 +94,12 @@ function SpaceForm({
             ))}
           </SelectContent>
         </Select>
+        {errors.locationId && <p className="text-xs text-red-500">{errors.locationId}</p>}
       </div>
       <div className="space-y-1">
         <Label>Nombre</Label>
-        <Input value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} required />
+        <Input className={errors.name ? 'border-red-500' : ''} value={form.name} onChange={(e) => { setForm((f) => ({ ...f, name: e.target.value })); setErrors((er) => ({ ...er, name: '' })) }} />
+        {errors.name && <p className="text-xs text-red-500">{errors.name}</p>}
       </div>
       <div className="space-y-1">
         <Label>Referencia (opcional)</Label>
@@ -83,7 +107,8 @@ function SpaceForm({
       </div>
       <div className="space-y-1">
         <Label>Capacidad</Label>
-        <Input type="number" min={1} value={form.capacity} onChange={(e) => setForm((f) => ({ ...f, capacity: Number(e.target.value) }))} required />
+        <Input type="number" min={1} className={errors.capacity ? 'border-red-500' : ''} value={form.capacity} onChange={(e) => { setForm((f) => ({ ...f, capacity: Number(e.target.value) })); setErrors((er) => ({ ...er, capacity: '' })) }} />
+        {errors.capacity && <p className="text-xs text-red-500">{errors.capacity}</p>}
       </div>
       <div className="space-y-1">
         <Label>Descripción (opcional)</Label>
@@ -148,18 +173,48 @@ export default function SpacesPage() {
   }
 
   async function handleCreate(dto: CreateSpaceDto) {
-    await spacesApi.create(dto)
-    toast.success('Espacio creado')
-    setCreating(false)
-    fetchSpaces()
+    try {
+      await spacesApi.create(dto)
+      toast.success('Espacio creado')
+      setCreating(false)
+      fetchSpaces()
+    } catch (err: unknown) {
+      const data = (err as { response?: { data?: { message?: string; details?: { field: string; message: string }[] } } })?.response?.data
+      const raw = data?.message ?? data?.details?.[0]?.message ?? ''
+      if (raw.includes('locationId') || raw.includes('Location not found')) {
+        toast.error('Lugar no válido o no encontrado')
+      } else if (raw.includes('capacity')) {
+        toast.error('La capacidad debe ser al menos 1')
+      } else if (raw.includes('name')) {
+        toast.error('El nombre es requerido')
+      } else {
+        toast.error(raw || 'Error al crear espacio')
+      }
+      throw err
+    }
   }
 
   async function handleUpdate(dto: CreateSpaceDto) {
     if (!editing) return
-    await spacesApi.update(editing.id, dto)
-    toast.success('Espacio actualizado')
-    setEditing(null)
-    fetchSpaces()
+    try {
+      await spacesApi.update(editing.id, dto)
+      toast.success('Espacio actualizado')
+      setEditing(null)
+      fetchSpaces()
+    } catch (err: unknown) {
+      const data = (err as { response?: { data?: { message?: string; details?: { field: string; message: string }[] } } })?.response?.data
+      const raw = data?.message ?? data?.details?.[0]?.message ?? ''
+      if (raw.includes('locationId') || raw.includes('Location not found')) {
+        toast.error('Lugar no válido o no encontrado')
+      } else if (raw.includes('capacity')) {
+        toast.error('La capacidad debe ser al menos 1')
+      } else if (raw.includes('name')) {
+        toast.error('El nombre es requerido')
+      } else {
+        toast.error(raw || 'Error al actualizar espacio')
+      }
+      throw err
+    }
   }
 
   return (
