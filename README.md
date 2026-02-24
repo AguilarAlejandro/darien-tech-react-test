@@ -37,12 +37,21 @@ La aplicación estará disponible en: `http://localhost:3001`
 
 > Por defecto Next.js usa el puerto 3000. Si la API ya ocupa ese puerto, Next.js asignará automáticamente el 3001. Puedes forzarlo con `PORT=3001 npm run dev`.
 
-### Modo producción
+### Modo producción (local)
 
 ```bash
 npm run build
 npm start
 ```
+
+### Modo producción con Docker
+
+```bash
+npm run start:docker
+# equivalente a: docker compose up --build
+```
+
+La aplicación estará disponible en: `http://localhost:3001`
 
 ---
 
