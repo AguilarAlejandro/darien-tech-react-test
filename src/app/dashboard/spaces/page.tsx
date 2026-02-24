@@ -133,6 +133,7 @@ export default function SpacesPage() {
   const [loading, setLoading] = useState(true)
   const [creating, setCreating] = useState(false)
   const [editing, setEditing] = useState<Space | null>(null)
+  const [deleting, setDeleting] = useState<string | null>(null)
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [total, setTotal] = useState(0)
@@ -217,6 +218,25 @@ export default function SpacesPage() {
     }
   }
 
+  async function handleDelete(id: string) {
+    setDeleting(id)
+    try {
+      await spacesApi.delete(id)
+      toast.success('Espacio eliminado')
+      fetchSpaces()
+    } catch (err: unknown) {
+      const data = (err as { response?: { data?: { message?: string } } })?.response?.data
+      const raw = data?.message ?? ''
+      if (raw.includes('reservations') || raw.includes('active')) {
+        toast.error('No se puede eliminar — el espacio tiene reservas activas')
+      } else {
+        toast.error(raw || 'Error al eliminar espacio')
+      }
+    } finally {
+      setDeleting(null)
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -261,7 +281,7 @@ export default function SpacesPage() {
                   <TableHead>Lugar</TableHead>
                   <TableHead className="text-right">Cap.</TableHead>
                   <TableHead>Descripción</TableHead>
-                  {isAdmin && <TableHead className="w-32" />}
+                  {isAdmin && <TableHead className="w-40" />}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -297,6 +317,15 @@ export default function SpacesPage() {
                               <SpaceForm initial={e} locations={locations} onSave={handleUpdate} onCancel={() => setEditing(null)} />
                             </DialogContent>
                           </Dialog>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-red-500 hover:text-red-600"
+                            onClick={() => handleDelete(e.id)}
+                            disabled={deleting === e.id}
+                          >
+                            {deleting === e.id ? '…' : 'Eliminar'}
+                          </Button>
                         </div>
                       </TableCell>
                     )}
