@@ -33,7 +33,7 @@ export const locationsApi = {
 
 // ─── Spaces ──────────────────────────────────────────────────────────────────
 export const spacesApi = {
-  list: (params?: { locationId?: string; type?: string; active?: boolean }) =>
+  list: (params?: { locationId?: string }) =>
     http.get<Space[]>('/api/v1/spaces', { params }).then((r) => r.data),
   get: (id: string) => http.get<Space>(`/api/v1/spaces/${id}`).then((r) => r.data),
   create: (dto: CreateSpaceDto) => http.post<Space>('/api/v1/spaces', dto).then((r) => r.data),

@@ -5,7 +5,6 @@ import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { spacesApi, locationsApi, bookingsApi } from '@/lib/api'
 import type { Space, Location, Booking } from '@/lib/types'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import {
@@ -18,26 +17,6 @@ import {
 } from '@/components/ui/table'
 import { Separator } from '@/components/ui/separator'
 import toast from 'react-hot-toast'
-
-const TYPE_LABELS: Record<string, string> = {
-  SALA_REUNION: 'Sala de reunión',
-  ESCRITORIO: 'Escritorio',
-  OFICINA_PRIVADA: 'Oficina privada',
-}
-
-const STATUS_LABELS: Record<string, string> = {
-  PENDIENTE: 'Pendiente',
-  CONFIRMADA: 'Confirmada',
-  CANCELADA: 'Cancelada',
-  COMPLETADA: 'Completada',
-}
-
-const STATUS_COLORS: Record<string, string> = {
-  PENDIENTE: 'bg-yellow-100 text-yellow-700 hover:bg-yellow-100',
-  CONFIRMADA: 'bg-emerald-100 text-emerald-700 hover:bg-emerald-100',
-  CANCELADA: 'bg-red-100 text-red-600 hover:bg-red-100',
-  COMPLETADA: 'bg-stone-100 text-stone-500 hover:bg-stone-100',
-}
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleString('es-MX', { dateStyle: 'short', timeStyle: 'short' })
@@ -105,18 +84,9 @@ export default function SpaceDetailPage() {
         <div>
           <h1 className="text-2xl font-bold text-stone-800">{space.name}</h1>
           <p className="text-sm text-stone-500 mt-0.5">
-            {location?.name ?? '—'} · {TYPE_LABELS[space.type] ?? space.type}
+            {location?.name ?? '—'}{space.reference ? ` · ${space.reference}` : ''}
           </p>
         </div>
-        <Badge
-          className={
-            space.active
-              ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-100 text-sm px-3 py-1'
-              : 'bg-stone-100 text-stone-500 hover:bg-stone-100 text-sm px-3 py-1'
-          }
-        >
-          {space.active ? 'Activo' : 'Inactivo'}
-        </Badge>
       </div>
 
       <div className="grid gap-6 md:grid-cols-2">
@@ -129,17 +99,11 @@ export default function SpaceDetailPage() {
             <Separator className="mb-2" />
             <DetailRow label="ID" value={<span className="font-mono text-xs text-stone-500">{space.id}</span>} />
             <Separator />
-            <DetailRow label="Tipo" value={TYPE_LABELS[space.type] ?? space.type} />
+            <DetailRow label="Referencia" value={space.reference ?? '—'} />
             <Separator />
             <DetailRow label="Capacidad" value={`${space.capacity} persona${space.capacity !== 1 ? 's' : ''}`} />
             <Separator />
-            <DetailRow label="Tarifa por hora" value={`$${space.hourlyRate}`} />
-            <Separator />
-            <DetailRow label="Estado" value={
-              <Badge className={space.active ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-100' : 'bg-stone-100 text-stone-500 hover:bg-stone-100'}>
-                {space.active ? 'Activo' : 'Inactivo'}
-              </Badge>
-            } />
+            <DetailRow label="Descripción" value={space.description ?? '—'} />
             <Separator />
             <DetailRow label="Creado" value={formatDate(space.createdAt)} />
             <Separator />
@@ -158,9 +122,9 @@ export default function SpaceDetailPage() {
                 <Separator className="mb-2" />
                 <DetailRow label="Nombre" value={location.name} />
                 <Separator />
-                <DetailRow label="Dirección" value={location.address} />
+                <DetailRow label="Latitud" value={location.latitude} />
                 <Separator />
-                <DetailRow label="Ciudad" value={location.city} />
+                <DetailRow label="Longitud" value={location.longitude} />
                 <Separator />
                 <DetailRow label="ID" value={<span className="font-mono text-xs text-stone-500">{location.id}</span>} />
               </>
@@ -180,33 +144,24 @@ export default function SpaceDetailPage() {
           <Table>
             <TableHeader>
               <TableRow className="bg-stone-50">
-                <TableHead>Usuario</TableHead>
+                <TableHead>Email</TableHead>
                 <TableHead>Inicio</TableHead>
                 <TableHead>Fin</TableHead>
-                <TableHead>Estado</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {bookings.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={4} className="text-center text-stone-400 py-6">
+                    <TableCell colSpan={3} className="text-center text-stone-400 py-6">
                     Sin reservas registradas
                   </TableCell>
                 </TableRow>
               ) : (
-                bookings.map((r) => (
+                  bookings.map((r) => (
                   <TableRow key={r.id} className="hover:bg-stone-50">
-                    <TableCell>
-                      <div className="font-medium text-stone-800 text-sm">{r.userName}</div>
-                      <div className="text-stone-400 text-xs">{r.userEmail}</div>
-                    </TableCell>
-                    <TableCell className="text-stone-600 text-sm">{formatDate(r.startDate)}</TableCell>
-                    <TableCell className="text-stone-600 text-sm">{formatDate(r.endDate)}</TableCell>
-                    <TableCell>
-                      <Badge className={STATUS_COLORS[r.status]}>
-                        {STATUS_LABELS[r.status]}
-                      </Badge>
-                    </TableCell>
+                    <TableCell className="text-stone-700 text-sm font-medium">{r.clientEmail}</TableCell>
+                    <TableCell className="text-stone-600 text-sm">{formatDate(r.startTime)}</TableCell>
+                    <TableCell className="text-stone-600 text-sm">{formatDate(r.endTime)}</TableCell>
                   </TableRow>
                 ))
               )}

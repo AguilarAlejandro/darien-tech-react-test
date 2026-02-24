@@ -15,16 +15,16 @@ export interface PaginatedResponse<T> {
 export interface Location {
   id: string
   name: string
-  address: string
-  city: string
+  latitude: number
+  longitude: number
   createdAt: string
   updatedAt: string
 }
 
 export interface CreateLocationDto {
   name: string
-  address: string
-  city: string
+  latitude: number
+  longitude: number
 }
 
 export type UpdateLocationDto = Partial<CreateLocationDto>
@@ -34,24 +34,20 @@ export interface Space {
   id: string
   locationId: string
   name: string
-  type: SpaceType
   capacity: number
-  hourlyRate: number
-  active: boolean
+  reference?: string
+  description?: string
   location?: Location
   createdAt: string
   updatedAt: string
 }
 
-export type SpaceType = 'SALA_REUNION' | 'ESCRITORIO' | 'OFICINA_PRIVADA'
-
 export interface CreateSpaceDto {
   locationId: string
   name: string
-  type: SpaceType
   capacity: number
-  hourlyRate: number
-  active?: boolean
+  reference?: string
+  description?: string
 }
 
 export type UpdateSpaceDto = Partial<Omit<CreateSpaceDto, 'locationId'>>
@@ -61,67 +57,67 @@ export interface Booking {
   id: string
   spaceId: string
   locationId: string
-  userEmail: string
-  userName: string
-  startDate: string
-  endDate: string
-  status: BookingStatus
-  notes?: string
+  clientEmail: string
+  bookingDate: string
+  startTime: string
+  endTime: string
   space?: Space
   location?: Location
   createdAt: string
   updatedAt: string
 }
 
-export type BookingStatus = 'PENDIENTE' | 'CONFIRMADA' | 'CANCELADA' | 'COMPLETADA'
-
 export interface CreateBookingDto {
   spaceId: string
-  userEmail: string
-  userName: string
-  startDate: string
-  endDate: string
-  notes?: string
+  clientEmail: string
+  bookingDate: string
+  startTime: string
+  endTime: string
 }
 
 export interface UpdateBookingDto {
-  status?: BookingStatus
-  notes?: string
+  bookingDate?: string
+  startTime?: string
+  endTime?: string
 }
 
 export interface FindBookingsQuery {
   page?: number
   pageSize?: number
   spaceId?: string
-  userEmail?: string
-  status?: BookingStatus
+  clientEmail?: string
   dateFrom?: string
   dateTo?: string
 }
 
 // ─── IoT / Digital Twin ───────────────────────────────────────────────────────
 export interface DesiredState {
-  maxOccupancy: number
+  id: string
+  spaceId: string
   co2AlertThreshold: number
   samplingIntervalSec: number
-  hvacEnabled: boolean
-  lightingLevel: number
+  updatedAt: string
 }
 
 export interface ReportedState {
-  tempC: number
-  co2Ppm: number
-  currentOccupancy: number
-  humedadPct: number
-  timestamp: string
+  id: string
+  spaceId: string
+  samplingIntervalSec?: number
+  co2AlertThreshold?: number
+  firmwareVersion?: string
+  reportedAt: string
+  updatedAt: string
 }
 
 export interface DigitalTwin {
-  desired: DesiredState
+  desired: DesiredState | null
   reported: ReportedState | null
 }
 
-export type UpdateDesiredDto = Partial<DesiredState>
+export type UpdateDesiredDto = {
+  co2AlertThreshold?: number
+  samplingIntervalSec?: number
+}
 
 export interface TelemetryAggregation {
   id: string
@@ -142,9 +138,9 @@ export interface Alert {
   id: string
   spaceId: string
   kind: AlertKind
-  message: string
-  openedAt: string
-  closedAt: string | null
+  metaJson: Record<string, unknown>
+  startedAt: string
+  resolvedAt: string | null
   space?: Space
 }
 
@@ -159,9 +155,9 @@ export interface SSETelemetryEvent {
 export interface SSEAlertEvent {
   spaceId: string
   kind: AlertKind
-  message: string
-  openedAt?: string
-  closedAt?: string | null
+  metaJson?: Record<string, unknown>
+  startedAt?: string
+  resolvedAt?: string | null
 }
 
 export interface SSETwinUpdateEvent {

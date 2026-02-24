@@ -3,12 +3,11 @@
 import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import { spacesApi, locationsApi } from '@/lib/api'
-import type { Space, Location, CreateSpaceDto, SpaceType } from '@/lib/types'
+import type { Space, Location, CreateSpaceDto } from '@/lib/types'
 import { useAuth } from '@/contexts/AuthContext'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import {
@@ -28,13 +27,6 @@ import {
 } from '@/components/ui/table'
 import toast from 'react-hot-toast'
 
-const TYPES: SpaceType[] = ['SALA_REUNION', 'ESCRITORIO', 'OFICINA_PRIVADA']
-const TYPE_LABELS: Record<SpaceType, string> = {
-  SALA_REUNION: 'Sala de reunión',
-  ESCRITORIO: 'Escritorio',
-  OFICINA_PRIVADA: 'Oficina privada',
-}
-
 function SpaceForm({
   initial,
   locations,
@@ -49,10 +41,9 @@ function SpaceForm({
   const [form, setForm] = useState<CreateSpaceDto>({
     locationId: initial?.locationId ?? '',
     name: initial?.name ?? '',
-    type: initial?.type ?? 'ESCRITORIO',
     capacity: initial?.capacity ?? 1,
-    hourlyRate: initial?.hourlyRate ?? 0,
-    active: initial?.active ?? true,
+    reference: initial?.reference ?? '',
+    description: initial?.description ?? '',
   })
   const [saving, setSaving] = useState(false)
 
@@ -86,25 +77,16 @@ function SpaceForm({
         <Input value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} required />
       </div>
       <div className="space-y-1">
-        <Label>Tipo</Label>
-        <Select value={form.type} onValueChange={(v) => setForm((f) => ({ ...f, type: v as SpaceType }))}>
-          <SelectTrigger>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {TYPES.map((t) => <SelectItem key={t} value={t}>{TYPE_LABELS[t]}</SelectItem>)}
-          </SelectContent>
-        </Select>
+        <Label>Referencia (opcional)</Label>
+        <Input value={form.reference ?? ''} onChange={(e) => setForm((f) => ({ ...f, reference: e.target.value }))} />
       </div>
-      <div className="grid grid-cols-2 gap-3">
-        <div className="space-y-1">
-          <Label>Capacidad</Label>
-          <Input type="number" min={1} value={form.capacity} onChange={(e) => setForm((f) => ({ ...f, capacity: Number(e.target.value) }))} required />
-        </div>
-        <div className="space-y-1">
-          <Label>Tarifa/hora ($)</Label>
-          <Input type="number" min={0} step="0.01" value={form.hourlyRate} onChange={(e) => setForm((f) => ({ ...f, hourlyRate: Number(e.target.value) }))} required />
-        </div>
+      <div className="space-y-1">
+        <Label>Capacidad</Label>
+        <Input type="number" min={1} value={form.capacity} onChange={(e) => setForm((f) => ({ ...f, capacity: Number(e.target.value) }))} required />
+      </div>
+      <div className="space-y-1">
+        <Label>Descripción (opcional)</Label>
+        <Input value={form.description ?? ''} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} />
       </div>
       <div className="flex gap-2 justify-end pt-2">
         <Button type="button" variant="outline" onClick={onCancel}>Cancelar</Button>
@@ -155,22 +137,6 @@ export default function SpacesPage() {
     fetchAll()
   }
 
-  async function handleToggle(space: Space) {
-    // Optimistic update
-    setSpaces((prev) =>
-      prev.map((e) => (e.id === space.id ? { ...e, active: !space.active } : e))
-    )
-    try {
-      await spacesApi.update(space.id, { active: !space.active })
-      toast.success(space.active ? 'Espacio desactivado' : 'Espacio activado')
-    } catch {
-      toast.error('Error al actualizar — revirtiendo…')
-      setSpaces((prev) =>
-        prev.map((e) => (e.id === space.id ? { ...e, active: space.active } : e))
-      )
-    }
-  }
-
   const filtered = filterLocation === '__all__' ? spaces : spaces.filter((e) => e.locationId === filterLocation)
 
   return (
@@ -213,11 +179,10 @@ export default function SpacesPage() {
               <TableHeader>
                 <TableRow className="bg-stone-50">
                   <TableHead>Nombre</TableHead>
-                  <TableHead>Tipo</TableHead>
+                  <TableHead>Referencia</TableHead>
                   <TableHead>Lugar</TableHead>
                   <TableHead className="text-right">Cap.</TableHead>
-                  <TableHead className="text-right">$/hora</TableHead>
-                  <TableHead>Estado</TableHead>
+                  <TableHead>Descripción</TableHead>
                   {isAdmin && <TableHead className="w-32" />}
                 </TableRow>
               </TableHeader>
@@ -234,17 +199,12 @@ export default function SpacesPage() {
                         {e.name}
                       </Link>
                     </TableCell>
-                    <TableCell className="text-stone-600 text-sm">{TYPE_LABELS[e.type]}</TableCell>
+                    <TableCell className="text-stone-500 text-sm">{e.reference ?? '—'}</TableCell>
                     <TableCell className="text-stone-500 text-sm">
                       {locations.find((l) => l.id === e.locationId)?.name ?? '—'}
                     </TableCell>
                     <TableCell className="text-right text-stone-600">{e.capacity}</TableCell>
-                    <TableCell className="text-right text-stone-600">${e.hourlyRate}</TableCell>
-                    <TableCell>
-                      <Badge className={e.active ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-100' : 'bg-stone-100 text-stone-500 hover:bg-stone-100'}>
-                        {e.active ? 'Activo' : 'Inactivo'}
-                      </Badge>
-                    </TableCell>
+                    <TableCell className="text-stone-500 text-sm truncate max-w-xs">{e.description ?? '—'}</TableCell>
                     {isAdmin && (
                       <TableCell>
                         <div className="flex gap-1">
@@ -259,9 +219,6 @@ export default function SpacesPage() {
                               <SpaceForm initial={e} locations={locations} onSave={handleUpdate} onCancel={() => setEditing(null)} />
                             </DialogContent>
                           </Dialog>
-                          <Button variant="ghost" size="sm" className={e.active ? 'text-stone-500' : 'text-emerald-600'} onClick={() => handleToggle(e)}>
-                            {e.active ? 'Desactivar' : 'Activar'}
-                          </Button>
                         </div>
                       </TableCell>
                     )}

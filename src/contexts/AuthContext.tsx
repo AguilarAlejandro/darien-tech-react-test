@@ -49,7 +49,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       router.replace('/login')
     }
     if (apiKey && pathname === '/login') {
-      router.replace('/dashboard/lugares')
+      router.replace('/dashboard/locations')
     }
   }, [apiKey, isLoading, pathname, router])
 
@@ -58,7 +58,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.setItem('apiRole', role)
     setApiKey(key)
     setRole(role)
-    router.replace('/dashboard/lugares')
+    router.replace('/dashboard/locations')
   }, [router])
 
   const logout = useCallback(() => {

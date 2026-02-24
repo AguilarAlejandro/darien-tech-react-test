@@ -36,13 +36,10 @@ function LocationForm({
 }) {
   const [form, setForm] = useState<CreateLocationDto>({
     name: initial?.name ?? '',
-    address: initial?.address ?? '',
-    city: initial?.city ?? '',
+    latitude: initial?.latitude ?? 0,
+    longitude: initial?.longitude ?? 0,
   })
   const [saving, setSaving] = useState(false)
-
-  const set = (k: keyof CreateLocationDto) => (e: React.ChangeEvent<HTMLInputElement>) =>
-    setForm((f) => ({ ...f, [k]: e.target.value }))
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -58,15 +55,15 @@ function LocationForm({
     <form onSubmit={handleSubmit} className="space-y-3">
       <div className="space-y-1">
         <Label>Nombre</Label>
-        <Input value={form.name} onChange={set('name')} required />
+        <Input value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} required />
       </div>
       <div className="space-y-1">
-        <Label>Dirección</Label>
-        <Input value={form.address} onChange={set('address')} required />
+        <Label>Latitud</Label>
+        <Input type="number" step="any" value={form.latitude} onChange={(e) => setForm((f) => ({ ...f, latitude: Number(e.target.value) }))} required />
       </div>
       <div className="space-y-1">
-        <Label>Ciudad</Label>
-        <Input value={form.city} onChange={set('city')} required />
+        <Label>Longitud</Label>
+        <Input type="number" step="any" value={form.longitude} onChange={(e) => setForm((f) => ({ ...f, longitude: Number(e.target.value) }))} required />
       </div>
       <div className="flex gap-2 justify-end pt-2">
         <Button type="button" variant="outline" onClick={onCancel}>
@@ -167,8 +164,8 @@ export default function LocationsPage() {
               <TableHeader>
                 <TableRow className="bg-stone-50">
                   <TableHead>Nombre</TableHead>
-                  <TableHead>Dirección</TableHead>
-                  <TableHead>Ciudad</TableHead>
+                  <TableHead>Latitud</TableHead>
+                  <TableHead>Longitud</TableHead>
                   <TableHead className="text-stone-400 text-xs">ID</TableHead>
                   {isAdmin && <TableHead className="w-28" />}
                 </TableRow>
@@ -184,8 +181,8 @@ export default function LocationsPage() {
                 {locations.map((l) => (
                   <TableRow key={l.id} className="hover:bg-stone-50">
                     <TableCell className="font-medium text-stone-800">{l.name}</TableCell>
-                    <TableCell className="text-stone-600">{l.address}</TableCell>
-                    <TableCell className="text-stone-600">{l.city}</TableCell>
+                    <TableCell className="text-stone-600">{l.latitude}</TableCell>
+                    <TableCell className="text-stone-600">{l.longitude}</TableCell>
                     <TableCell className="text-stone-300 text-xs font-mono">
                       {l.id.slice(0, 8)}…
                     </TableCell>
@@ -211,8 +208,8 @@ export default function LocationsPage() {
                                 <DialogTitle>Editar lugar</DialogTitle>
                               </DialogHeader>
                               <LocationForm
-                                initial={l}
-                                onSave={handleUpdate}
+                              initial={l}
+                              onSave={handleUpdate}
                                 onCancel={() => setEditing(null)}
                               />
                             </DialogContent>

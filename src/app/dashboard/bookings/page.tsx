@@ -2,13 +2,11 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { bookingsApi, spacesApi } from '@/lib/api'
-import type { Booking, CreateBookingDto, BookingStatus, Space } from '@/lib/types'
+import type { Booking, CreateBookingDto, Space } from '@/lib/types'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
-import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import {
   Dialog,
@@ -27,20 +25,6 @@ import {
 } from '@/components/ui/table'
 import toast from 'react-hot-toast'
 
-const STATUS_LABELS: Record<BookingStatus, string> = {
-  PENDIENTE: 'Pendiente',
-  CONFIRMADA: 'Confirmada',
-  CANCELADA: 'Cancelada',
-  COMPLETADA: 'Completada',
-}
-
-const STATUS_COLORS: Record<BookingStatus, string> = {
-  PENDIENTE: 'bg-yellow-100 text-yellow-700 hover:bg-yellow-100',
-  CONFIRMADA: 'bg-emerald-100 text-emerald-700 hover:bg-emerald-100',
-  CANCELADA: 'bg-red-100 text-red-600 hover:bg-red-100',
-  COMPLETADA: 'bg-stone-100 text-stone-500 hover:bg-stone-100',
-}
-
 function CreateBookingForm({
   spaces,
   onSave,
@@ -51,13 +35,12 @@ function CreateBookingForm({
   onCancel: () => void
 }) {
   const today = new Date().toISOString().slice(0, 10)
-  const [form, setForm] = useState<CreateBookingDto>({
+  const [form, setForm] = useState({
     spaceId: '',
-    userEmail: '',
-    userName: '',
-    startDate: `${today}T09:00`,
-    endDate: `${today}T10:00`,
-    notes: '',
+    clientEmail: '',
+    bookingDate: today,
+    startTime: `${today}T09:00`,
+    endTime: `${today}T10:00`,
   })
   const [saving, setSaving] = useState(false)
 
@@ -66,16 +49,16 @@ function CreateBookingForm({
     setSaving(true)
     try {
       await onSave({
-        ...form,
-        startDate: new Date(form.startDate).toISOString(),
-        endDate: new Date(form.endDate).toISOString(),
+        spaceId: form.spaceId,
+        clientEmail: form.clientEmail,
+        bookingDate: new Date(form.bookingDate).toISOString(),
+        startTime: new Date(form.startTime).toISOString(),
+        endTime: new Date(form.endTime).toISOString(),
       })
     } finally {
       setSaving(false)
     }
   }
-
-  const activeSpaces = spaces.filter((e) => e.active)
 
   return (
     <form onSubmit={handleSubmit} className="space-y-3">
@@ -86,39 +69,33 @@ function CreateBookingForm({
             <SelectValue placeholder="Seleccionar espacio…" />
           </SelectTrigger>
           <SelectContent>
-            {activeSpaces.map((e) => (
-              <SelectItem key={e.id} value={e.id}>{e.name} — ${e.hourlyRate}/h</SelectItem>
+            {spaces.map((e) => (
+              <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>
             ))}
           </SelectContent>
         </Select>
       </div>
-      <div className="grid grid-cols-2 gap-3">
-        <div className="space-y-1">
-          <Label>Nombre</Label>
-          <Input value={form.userName} onChange={(e) => setForm((f) => ({ ...f, userName: e.target.value }))} required />
-        </div>
-        <div className="space-y-1">
-          <Label>Email</Label>
-          <Input type="email" value={form.userEmail} onChange={(e) => setForm((f) => ({ ...f, userEmail: e.target.value }))} required />
-        </div>
-      </div>
-      <div className="grid grid-cols-2 gap-3">
-        <div className="space-y-1">
-          <Label>Inicio</Label>
-          <Input type="datetime-local" value={form.startDate} onChange={(e) => setForm((f) => ({ ...f, startDate: e.target.value }))} required />
-        </div>
-        <div className="space-y-1">
-          <Label>Fin</Label>
-          <Input type="datetime-local" value={form.endDate} onChange={(e) => setForm((f) => ({ ...f, endDate: e.target.value }))} required />
-        </div>
+      <div className="space-y-1">
+        <Label>Email del cliente</Label>
+        <Input type="email" value={form.clientEmail} onChange={(e) => setForm((f) => ({ ...f, clientEmail: e.target.value }))} required />
       </div>
       <div className="space-y-1">
-        <Label>Notas (opcional)</Label>
-        <Textarea value={form.notes} onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))} rows={2} />
+        <Label>Fecha de reserva</Label>
+        <Input type="date" value={form.bookingDate} onChange={(e) => setForm((f) => ({ ...f, bookingDate: e.target.value }))} required />
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-1">
+          <Label>Hora inicio</Label>
+          <Input type="datetime-local" value={form.startTime} onChange={(e) => setForm((f) => ({ ...f, startTime: e.target.value }))} required />
+        </div>
+        <div className="space-y-1">
+          <Label>Hora fin</Label>
+          <Input type="datetime-local" value={form.endTime} onChange={(e) => setForm((f) => ({ ...f, endTime: e.target.value }))} required />
+        </div>
       </div>
       <div className="flex gap-2 justify-end pt-2">
         <Button type="button" variant="outline" onClick={onCancel}>Cancelar</Button>
-        <Button type="submit" className="bg-teal-600 hover:bg-teal-700 text-white" disabled={saving || !form.spaceId}>
+        <Button type="submit" className="bg-teal-600 hover:bg-teal-700 text-white" disabled={saving || !form.spaceId || !form.clientEmail}>
           {saving ? 'Reservando…' : 'Crear reserva'}
         </Button>
       </div>
@@ -138,7 +115,6 @@ export default function BookingsPage() {
   const [creating, setCreating] = useState(false)
   const [loading, setLoading] = useState(true)
   const [filterEmail, setFilterEmail] = useState('')
-  const [filterStatus, setFilterStatus] = useState<BookingStatus | '__all__'>('__all__')
 
   const PAGE_SIZE = 10
 
@@ -146,8 +122,7 @@ export default function BookingsPage() {
     setLoading(true)
     try {
       const params: Record<string, unknown> = { page, pageSize: PAGE_SIZE }
-      if (filterEmail) params.userEmail = filterEmail
-      if (filterStatus !== '__all__') params.status = filterStatus
+      if (filterEmail) params.clientEmail = filterEmail
       const result = await bookingsApi.list(params as Parameters<typeof bookingsApi.list>[0])
       setBookings(result.data)
       setTotal(result.meta.total)
@@ -156,7 +131,7 @@ export default function BookingsPage() {
     } finally {
       setLoading(false)
     }
-  }, [page, filterEmail, filterStatus])
+  }, [page, filterEmail])
 
   useEffect(() => { fetchBookings() }, [fetchBookings])
   useEffect(() => { spacesApi.list().then(setSpaces).catch(() => {}) }, [])
@@ -169,9 +144,9 @@ export default function BookingsPage() {
       fetchBookings()
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
-      if (msg?.includes('conflict') || msg?.includes('solapamiento')) {
+      if (msg?.includes('conflict') || msg?.includes('Schedule conflict')) {
         toast.error('Conflicto de horario — ese espacio ya está reservado')
-      } else if (msg?.includes('límite semanal') || msg?.includes('weekly')) {
+      } else if (msg?.includes('Weekly booking limit')) {
         toast.error('Límite semanal alcanzado (máx. 3 reservas por semana)')
       } else {
         toast.error(msg ?? 'Error al crear reserva')
@@ -207,19 +182,8 @@ export default function BookingsPage() {
             placeholder="Filtrar por email…"
             value={filterEmail}
             onChange={(e) => { setFilterEmail(e.target.value); setPage(1) }}
-            className="w-48"
+            className="w-52"
           />
-          <Select value={filterStatus} onValueChange={(v) => { setFilterStatus(v as BookingStatus | '__all__'); setPage(1) }}>
-            <SelectTrigger className="w-40">
-              <SelectValue placeholder="Estado" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="__all__">Todos los estados</SelectItem>
-              {(Object.keys(STATUS_LABELS) as BookingStatus[]).map((k) => (
-                <SelectItem key={k} value={k}>{STATUS_LABELS[k]}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
           <Dialog open={creating} onOpenChange={setCreating}>
             <DialogTrigger asChild>
               <Button className="bg-teal-600 hover:bg-teal-700 text-white">+ Nueva reserva</Button>
@@ -240,47 +204,40 @@ export default function BookingsPage() {
             <Table>
               <TableHeader>
                 <TableRow className="bg-stone-50">
-                  <TableHead>Usuario</TableHead>
+                  <TableHead>Email</TableHead>
                   <TableHead>Espacio</TableHead>
+                  <TableHead>Fecha</TableHead>
                   <TableHead>Inicio</TableHead>
                   <TableHead>Fin</TableHead>
-                  <TableHead>Estado</TableHead>
                   <TableHead className="w-24" />
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {bookings.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center text-stone-400 py-8">Sin resultados</TableCell>
+                    <TableCell colSpan={7} className="text-center text-stone-400 py-8">Sin resultados</TableCell>
                   </TableRow>
                 )}
                 {bookings.map((r) => {
                   const space = spaces.find((e) => e.id === r.spaceId)
                   return (
                     <TableRow key={r.id} className="hover:bg-stone-50">
-                      <TableCell>
-                        <div className="font-medium text-stone-800 text-sm">{r.userName}</div>
-                        <div className="text-stone-400 text-xs">{r.userEmail}</div>
-                      </TableCell>
+                      <TableCell className="text-stone-700 text-sm font-medium">{r.clientEmail}</TableCell>
                       <TableCell className="text-stone-600 text-sm">
                         {space?.name ?? r.spaceId.slice(0, 8)}
                       </TableCell>
-                      <TableCell className="text-stone-600 text-sm">{formatDate(r.startDate)}</TableCell>
-                      <TableCell className="text-stone-600 text-sm">{formatDate(r.endDate)}</TableCell>
+                      <TableCell className="text-stone-600 text-sm">{formatDate(r.bookingDate)}</TableCell>
+                      <TableCell className="text-stone-600 text-sm">{formatDate(r.startTime)}</TableCell>
+                      <TableCell className="text-stone-600 text-sm">{formatDate(r.endTime)}</TableCell>
                       <TableCell>
-                        <Badge className={STATUS_COLORS[r.status]}>{STATUS_LABELS[r.status]}</Badge>
-                      </TableCell>
-                      <TableCell>
-                        {r.status !== 'CANCELADA' && r.status !== 'COMPLETADA' && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="text-red-500 hover:text-red-600"
-                            onClick={() => handleDelete(r.id)}
-                          >
-                            Eliminar
-                          </Button>
-                        )}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-red-500 hover:text-red-600"
+                          onClick={() => handleDelete(r.id)}
+                        >
+                          Eliminar
+                        </Button>
                       </TableCell>
                     </TableRow>
                   )

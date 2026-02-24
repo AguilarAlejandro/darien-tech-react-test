@@ -46,14 +46,14 @@ function TwinPanel({
 }) {
   const [twin, setTwin] = useState<DigitalTwin | null>(null)
   const [editing, setEditing] = useState(false)
-  const [desired, setDesired] = useState<Partial<DigitalTwin['desired']>>({})
+  const [desired, setDesired] = useState<{ co2AlertThreshold?: number; samplingIntervalSec?: number }>({})
   const [saving, setSaving] = useState(false)
 
   const fetchTwin = useCallback(async () => {
     try {
       const data = await iotApi.getTwin(spaceId)
       setTwin(data)
-      setDesired(data.desired)
+      setDesired(data.desired ? { co2AlertThreshold: data.desired.co2AlertThreshold, samplingIntervalSec: data.desired.samplingIntervalSec } : {})
     } catch {
       toast.error('Error al cargar digital twin')
     }
@@ -97,17 +97,15 @@ function TwinPanel({
               <div className="space-y-2">
                 {(
                   [
-                  ['maxOccupancy', 'Max. ocupación', 'number'],
                     ['co2AlertThreshold', 'Umbral CO₂ (ppm)', 'number'],
                     ['samplingIntervalSec', 'Intervalo muestreo (s)', 'number'],
-                    ['lightingLevel', 'Nivel de luz (0-100)', 'number'],
-                  ] as [keyof DigitalTwin['desired'], string, string][]
+                  ] as ['co2AlertThreshold' | 'samplingIntervalSec', string, string][]
                 ).map(([k, label]) => (
                   <div key={k} className="space-y-0.5">
                     <Label className="text-xs">{label}</Label>
                     <Input
                       type="number"
-                      value={desired[k] as number ?? ''}
+                      value={desired[k] ?? ''}
                       onChange={(e) => setDesired((d) => ({ ...d, [k]: Number(e.target.value) }))}
                       className="h-7 text-xs"
                     />
@@ -119,18 +117,17 @@ function TwinPanel({
               </div>
             ) : (
               <dl className="space-y-1.5">
-                {[
-                  ['Max. ocupación', twin.desired.maxOccupancy],
+                {twin.desired ? [
                   ['Umbral CO₂', `${twin.desired.co2AlertThreshold} ppm`],
                   ['Intervalo muestreo', `${twin.desired.samplingIntervalSec}s`],
-                  ['Nivel de luz', `${twin.desired.lightingLevel}%`],
-                  ['HVAC', twin.desired.hvacEnabled ? 'Activado' : 'Desactivado'],
                 ].map(([label, value]) => (
                   <div key={String(label)} className="flex justify-between">
                     <dt className="text-stone-500">{label}</dt>
                     <dd className="font-medium text-stone-700">{String(value)}</dd>
                   </div>
-                ))}
+                )) : (
+                  <p className="text-stone-400 text-xs">Sin configuración deseada</p>
+                )}
               </dl>
             )}
           </CardContent>
@@ -145,11 +142,10 @@ function TwinPanel({
             {twin.reported ? (
               <dl className="space-y-1.5">
                 {[
-                  ['Temperatura', `${twin.reported.tempC.toFixed(1)} °C`],
-                  ['CO₂', `${twin.reported.co2Ppm} ppm`],
-                  ['Ocupación actual', twin.reported.currentOccupancy],
-                  ['Humedad', `${twin.reported.humedadPct.toFixed(0)}%`],
-                  ['Última lectura', formatTime(twin.reported.timestamp)],
+                  ['Intervalo muestreo', twin.reported.samplingIntervalSec != null ? `${twin.reported.samplingIntervalSec}s` : '—'],
+                  ['Umbral CO₂', twin.reported.co2AlertThreshold != null ? `${twin.reported.co2AlertThreshold} ppm` : '—'],
+                  ['Firmware', twin.reported.firmwareVersion ?? '—'],
+                  ['Última lectura', formatTime(twin.reported.reportedAt)],
                 ].map(([label, value]) => (
                   <div key={String(label)} className="flex justify-between">
                     <dt className="text-stone-500">{label}</dt>
@@ -251,8 +247,8 @@ function AlertsPanel({ spaceId }: { spaceId: string }) {
     iotApi.getAlerts(spaceId).then(setAlerts).catch(() => {})
   }, [spaceId])
 
-  const open = alerts.filter((a) => !a.closedAt)
-  const closed = alerts.filter((a) => a.closedAt)
+  const open = alerts.filter((a) => !a.resolvedAt)
+  const closed = alerts.filter((a) => a.resolvedAt)
 
   return (
     <div className="space-y-3">
@@ -264,7 +260,7 @@ function AlertsPanel({ spaceId }: { spaceId: string }) {
           <AlertDescription className="flex items-center justify-between">
             <div>
               <span className="font-medium text-orange-700">{ALERT_KIND_LABELS[a.kind]}</span>
-              <p className="text-xs text-orange-600 mt-0.5">{a.message}</p>
+              <p className="text-xs text-orange-600 mt-0.5">{a.metaJson ? JSON.stringify(a.metaJson) : ''}</p>
             </div>
             <Badge className="bg-orange-100 text-orange-700 hover:bg-orange-100">Activa</Badge>
           </AlertDescription>
@@ -276,7 +272,7 @@ function AlertsPanel({ spaceId }: { spaceId: string }) {
           {closed.slice(0, 5).map((a) => (
             <div key={a.id} className="flex items-center justify-between text-xs text-stone-500 bg-stone-50 px-3 py-2 rounded">
               <span>{ALERT_KIND_LABELS[a.kind]}</span>
-              <span>{new Date(a.closedAt!).toLocaleString('es-MX', { dateStyle: 'short', timeStyle: 'short' })}</span>
+              <span>{new Date(a.resolvedAt!).toLocaleString('es-MX', { dateStyle: 'short', timeStyle: 'short' })}</span>
             </div>
           ))}
         </div>
@@ -309,7 +305,7 @@ export default function IotPage() {
     }, [selectedId]),
     onAlert: useCallback((e: SSEAlertEvent) => {
       setLiveAlerts((prev) => [e, ...prev].slice(0, 10))
-      toast.error(`⚠️ ${ALERT_KIND_LABELS[e.kind] ?? e.kind} — ${e.message ?? ''}`, { duration: 6000 })
+      toast.error(`⚠️ ${ALERT_KIND_LABELS[e.kind] ?? e.kind}`, { duration: 6000 })
     }, []),
   })
 
