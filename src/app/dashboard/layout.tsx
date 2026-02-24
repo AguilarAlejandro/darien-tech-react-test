@@ -10,7 +10,7 @@ const navItems = [
   { href: '/dashboard/locations', label: 'Lugares', icon: '🏢', adminOnly: false },
   { href: '/dashboard/spaces', label: 'Espacios', icon: '🪑', adminOnly: false },
   { href: '/dashboard/bookings', label: 'Reservas', icon: '📅', adminOnly: false },
-  { href: '/dashboard/iot', label: 'IoT Dashboard', icon: '📡', adminOnly: false },
+  { href: '/dashboard/iot', label: 'IoT Dashboard', icon: '📡', adminOnly: true },
 ]
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -36,7 +36,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
         {/* Nav */}
         <nav className="flex-1 px-3 py-4 space-y-1">
-          {navItems.map((item) => {
+          {navItems
+            .filter((item) => !item.adminOnly || role === 'ADMIN')
+            .map((item) => {
             const active = pathname.startsWith(item.href)
             return (
               <Link

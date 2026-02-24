@@ -316,6 +316,16 @@ export default function IotPage() {
   const [selectedId, setSelectedId] = useState<string>('')
   const [liveAlerts, setLiveAlerts] = useState<SSEAlertEvent[]>([])
 
+  // Admin-only guard
+  if (!isAdmin) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-3">
+        <h2 className="text-2xl font-bold text-stone-800">Access Denied</h2>
+        <p className="text-stone-500">The IoT dashboard is only available to administrators.</p>
+      </div>
+    )
+  }
+
   useEffect(() => {
     spacesApi.list().then((sp) => {
       setSpaces(sp)

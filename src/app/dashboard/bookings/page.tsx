@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useDebounce } from '@/hooks/useDebounce'
 import { bookingsApi, spacesApi } from '@/lib/api'
+import { createBookingSchema } from '@/lib/schemas'
 import type { Booking, CreateBookingDto, Space } from '@/lib/types'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -25,6 +26,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import toast from 'react-hot-toast'
+import { ZodError } from 'zod'
 
 function CreateBookingForm({
   spaces,
@@ -44,9 +46,31 @@ function CreateBookingForm({
     endTime: `${today}T10:00`,
   })
   const [saving, setSaving] = useState(false)
+  const [errors, setErrors] = useState<Record<string, string>>({})
+
+  function validate(): boolean {
+    try {
+      createBookingSchema.parse(form)
+      setErrors({})
+      return true
+    } catch (err) {
+      if (err instanceof ZodError) {
+        const fieldErrors: Record<string, string> = {}
+        for (const issue of err.issues) {
+          const key = issue.path[0]?.toString()
+          if (key && !fieldErrors[key]) {
+            fieldErrors[key] = issue.message
+          }
+        }
+        setErrors(fieldErrors)
+      }
+      return false
+    }
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
+    if (!validate()) return
     setSaving(true)
     try {
       await onSave({
@@ -65,8 +89,8 @@ function CreateBookingForm({
     <form onSubmit={handleSubmit} className="space-y-3">
       <div className="space-y-1">
         <Label>Espacio</Label>
-        <Select value={form.spaceId} onValueChange={(v) => setForm((f) => ({ ...f, spaceId: v }))}>
-          <SelectTrigger>
+        <Select value={form.spaceId} onValueChange={(v) => { setForm((f) => ({ ...f, spaceId: v })); setErrors((e) => ({ ...e, spaceId: '' })) }}>
+          <SelectTrigger className={errors.spaceId ? 'border-red-500' : ''}>
             <SelectValue placeholder="Seleccionar espacio…" />
           </SelectTrigger>
           <SelectContent>
@@ -75,23 +99,28 @@ function CreateBookingForm({
             ))}
           </SelectContent>
         </Select>
+        {errors.spaceId && <p className="text-xs text-red-500">{errors.spaceId}</p>}
       </div>
       <div className="space-y-1">
         <Label>Email del cliente</Label>
-        <Input type="email" value={form.clientEmail} onChange={(e) => setForm((f) => ({ ...f, clientEmail: e.target.value }))} required />
+        <Input type="email" className={errors.clientEmail ? 'border-red-500' : ''} value={form.clientEmail} onChange={(e) => { setForm((f) => ({ ...f, clientEmail: e.target.value })); setErrors((er) => ({ ...er, clientEmail: '' })) }} required />
+        {errors.clientEmail && <p className="text-xs text-red-500">{errors.clientEmail}</p>}
       </div>
       <div className="space-y-1">
         <Label>Fecha de reserva</Label>
-        <Input type="date" value={form.bookingDate} onChange={(e) => setForm((f) => ({ ...f, bookingDate: e.target.value }))} required />
+        <Input type="date" className={errors.bookingDate ? 'border-red-500' : ''} value={form.bookingDate} onChange={(e) => setForm((f) => ({ ...f, bookingDate: e.target.value }))} required />
+        {errors.bookingDate && <p className="text-xs text-red-500">{errors.bookingDate}</p>}
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1">
           <Label>Hora inicio</Label>
-          <Input type="datetime-local" value={form.startTime} onChange={(e) => setForm((f) => ({ ...f, startTime: e.target.value }))} required />
+          <Input type="datetime-local" className={errors.startTime ? 'border-red-500' : ''} value={form.startTime} onChange={(e) => setForm((f) => ({ ...f, startTime: e.target.value }))} required />
+          {errors.startTime && <p className="text-xs text-red-500">{errors.startTime}</p>}
         </div>
         <div className="space-y-1">
           <Label>Hora fin</Label>
-          <Input type="datetime-local" value={form.endTime} onChange={(e) => setForm((f) => ({ ...f, endTime: e.target.value }))} required />
+          <Input type="datetime-local" className={errors.endTime ? 'border-red-500' : ''} value={form.endTime} onChange={(e) => setForm((f) => ({ ...f, endTime: e.target.value }))} required />
+          {errors.endTime && <p className="text-xs text-red-500">{errors.endTime}</p>}
         </div>
       </div>
       <div className="flex gap-2 justify-end pt-2">
